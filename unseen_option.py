@@ -1,0 +1,63 @@
+"""
+This code is from Kai Li "kailigo". The website is https://github.com/kailigo/cvcZSL.
+"""
+import argparse
+import os
+
+class Options():
+    def __init__(self):
+        # Training settings
+
+        parser = argparse.ArgumentParser(description='Tank Shot')
+
+        parser.add_argument('--dataset', default='SUN', type=str,
+                            help='dataset to be processed')
+        
+        # parser.add_argument('--batchSize', default=25,type=int,
+        #                     help='Batch Size')
+        # parser.add_argument('--lr', default=1e-3, type=float,
+        #                     help='learning rate')
+        parser.add_argument('--step_size', default=100, type=int,
+                            help='decay step')
+        parser.add_argument('--gamma', default=0.5, type=float,
+                            help='decay rate')
+        parser.add_argument('--num_epochs', default=2, type=int,
+                            help='epoch number')                
+        parser.add_argument('--nthreads', default=8,type=int,
+                            help='threads num to load data')
+
+        parser.add_argument('--ways', default=32,type=int,
+                            help='number of class for one test')
+        # CUB and SUN: 20
+        # AWA2 and APY: 16
+        parser.add_argument('--shots', default=4,type=int,
+                            help='number of pictures of each class to support')
+
+        parser.add_argument('--lr', default=1e-5,type=float,
+                            help='learning rate')
+            
+        parser.add_argument('--weight_model', default='weightnet',type=str,
+                            help='weight model name after finetuning')
+
+        parser.add_argument('--hidden_dim', default=1600,type=int,
+                            help='hidden dimension')
+
+        parser.add_argument('--opt_decay', default=1e-3,type=float,
+                            help='decay rate for optimizer')
+        
+        parser.add_argument("--log_to_file", type=bool, default=True)
+        parser.add_argument("--log_file", type=str, default='temp.log')
+    
+        parser.add_argument("--model_file", type=str, default='model.pt')
+        parser.add_argument('--device', default='cuda:1', type=str, help='cuda:0,cuda:1,cuda:2,cpu')
+
+        #基于net-SRWGAN新增
+        parser.add_argument('--nz', type=int, default=2048, help='size of the semantic representation * 2')
+        parser.add_argument('--ngh', type=int, default=2048, help='default value')
+        parser.add_argument('--attSize', type=int, default=4097, help='default value')
+        parser.add_argument('--resSize', type=int, default=2048, help='default value')
+        parser.add_argument('--beta1', default=0.5, type=float, help='default value')
+        self.parser = parser
+
+    def parse(self):
+        return self.parser.parse_args()
