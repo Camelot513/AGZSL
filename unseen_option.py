@@ -10,7 +10,7 @@ class Options():
 
         parser = argparse.ArgumentParser(description='Tank Shot')
 
-        parser.add_argument('--dataset', default='SUN', type=str,
+        parser.add_argument('--dataset', default='CUB', type=str,
                             help='dataset to be processed')
         
         # parser.add_argument('--batchSize', default=25,type=int,
@@ -21,12 +21,12 @@ class Options():
                             help='decay step')
         parser.add_argument('--gamma', default=0.5, type=float,
                             help='decay rate')
-        parser.add_argument('--num_epochs', default=2, type=int,
+        parser.add_argument('--num_epochs', default=200, type=int,
                             help='epoch number')                
         parser.add_argument('--nthreads', default=8,type=int,
                             help='threads num to load data')
 
-        parser.add_argument('--ways', default=32,type=int,
+        parser.add_argument('--ways', default=20,type=int,
                             help='number of class for one test')
         # CUB and SUN: 20
         # AWA2 and APY: 16
@@ -57,6 +57,12 @@ class Options():
         parser.add_argument('--attSize', type=int, default=4097, help='default value')
         parser.add_argument('--resSize', type=int, default=2048, help='default value')
         parser.add_argument('--beta1', default=0.5, type=float, help='default value')
+        parser.add_argument('--inputSize', type=int, default=4097, help='default value')
+
+        #for our new_network
+        parser.add_argument('--att_Size', type=int, default=312, help='dataset semantic_dim')
+        parser.add_argument('--hz', type=int, default=1024, help='size of the visual representation * 2')
+        parser.add_argument('--iz', type=int, default=2048, help='dataset visual_dim')
         self.parser = parser
 
     def parse(self):

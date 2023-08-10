@@ -6,7 +6,7 @@ import numpy as np
 import torch
 from pdb import set_trace as breakpoint
 import torch.utils.data as data
-
+from sklearn.metrics import mean_squared_error
 
 
 
@@ -92,7 +92,7 @@ class data_loader_virtualCls(data.Dataset):
                 select_atts = []
                 select_labels = []
                 select_labels = torch.LongTensor(self.ways*self.shots)
-                selected_classes = np.random.choice(list(self.classes), self.ways, True) # AWA2和APY需要把这里改为True,CUN和SUN可以是False
+                selected_classes = np.random.choice(list(self.classes), self.ways, False) # AWA2和APY需要把这里改为True,CUN和SUN可以是False
                 #selected_classes = self.classes
                 #mixup
                 cls_idx = {}
@@ -133,24 +133,33 @@ class data_loader_virtualCls(data.Dataset):
                                     select_feat = select_feats[int(i-self.ways/2)*self.shots+j].cuda()
                                     select_feat = select_feat.unsqueeze(0)
                                     # feat = lam*feat+(1-lam)*select_feats[int(i-self.ways/2)*self.shots+j]
-                                    # att = att.unsqueeze(0)
-                                    # att = lam*att+(1-lam)*select_atts[int(i-self.ways/2)*self.shots+j]
+                                    att = att.unsqueeze(0)
+                                    v_att = lam*att+(1-lam)*select_atts[int(i-self.ways/2)*self.shots+j]
+                                    select_att = select_atts[int(i-self.ways/2)*self.shots+j]
+                                    select_att = select_att.unsqueeze(0)
                                     # our
                                     # feat = ournet(lam,feat,select_feats)
+                                    #netG
+                                    # feat, G_noise1, G_noise2, G_noise3 = ournet(feat.cuda(), lam, select_feat)
+                                    # att = att.unsqueeze(0)
+                                    # att = lam * att + (1 - lam) * select_atts[int(i - self.ways / 2) * self.shots + j]
 
-                                    feat, G_noise1, G_noise2, G_noise3 = ournet(feat.cuda(), lam, select_feat)
-                                    att = att.unsqueeze(0)
-                                    att = lam * att + (1 - lam) * select_atts[int(i - self.ways / 2) * self.shots + j]
+                                    #netN
+                                    v_feat, i_feat, j_feat, decoder_xi, decoder_xj = ournet(feat.cuda(), lam, select_feat)
+
                                     # att = lam*att+(1-lam)select_atts
                                     # or
                                     # att = ournet(lam,att,select_att)
                                     # feat = lam*feat+(1-lam)select_feat
                                     # our loss -> net
+
                                     # print(feat.size())
                                     # print(att.size())
-                                    select_feats = torch.cat((select_feats.cuda(), feat.cuda()),0)
-                                    select_atts = torch.cat((select_atts, att),0)
+                                    select_feats = torch.cat((select_feats.cuda(), v_feat.cuda()),0)
+                                    select_atts = torch.cat((select_atts, v_att),0)
                                     select_labels[i*self.shots+j] = i - int(self.ways/2)
+                                    loss1 = mean_squared_error(decoder_xi, feat) + mean_squared_error(decoder_xj, select_feat)
+                                    loss2 = mean_squared_error(i_feat, att) + mean_squared_error(j_feat, select_att) + mean_squared_error(v_feat, v_att)
 
                 noval_index = int(self.ways/2)*self.shots
 

@@ -24,7 +24,8 @@ import pickle
 import datetime
 
 TMP = 10
-
+# 指定运行GPU
+os.environ['CUDA_VISIBLE_DEVICES'] = "0"
 args = Options().parse()
 model_file_name = './chk/' + args.model_file
 # summaryFolder = './summary/' + args.log_file
@@ -323,10 +324,17 @@ class MLP_G(nn.Module):
 netG = MLP_G(args)
 netG.cuda()
 
+# New_network
+from new_network import new_network
+netN = new_network(args)
+netN.cuda()
+
 # add our net parameter
-optimizer = torch.optim.Adam([w_IAS,b_IAS,w1, b1, w2, b2, bias, scale_cls,our_net_w,our_net_b], lr=args.lr, weight_decay=args.opt_decay)
+# optimizer = torch.optim.Adam([w_IAS,b_IAS,w1, b1, w2, b2, bias, scale_cls,our_net_w,our_net_b], lr=args.lr, weight_decay=args.opt_decay)
 #our
 # optimizer = torch.optim.Adam(netG.parameters(), lr=args.lr, betas=(args.beta1, 0.999))
+# New_network
+optimizer = torch.optim.Adam(netN.parameters(), lr=args.lr)
 
 # breakpoint()
 step_size = args.step_size
@@ -356,8 +364,8 @@ for epoch in range(args.num_epochs):
         lr_scheduler.step()
 
         for i in range(1000):           
-                # batch_visual, batch_att, batch_label = dataset.__our_getitem__(i, netG) # __our_getitem__(i,ournet) use our net to process att and visual, and new att and visual
-                batch_visual, batch_att, batch_label = dataset.__getitem__(i)
+                batch_visual, batch_att, batch_label = dataset.__our_getitem__(i, netN) # __our_getitem__(i,ournet) use our net to process att and visual, and new att and visual
+                # batch_visual, batch_att, batch_label = dataset.__getitem__(i)
                 batch_visual = batch_visual.cuda()
                 batch_visual_norm = F.normalize(batch_visual, p=2, dim=batch_visual.dim()-1, eps=1e-12)                         
 
@@ -370,6 +378,8 @@ for epoch in range(args.num_epochs):
                 score = apply_classification_weights(batch_visual_norm, all_cls_weights)
                 score = score.squeeze(0)
                 # design our_loss = .. .
+                
+
                 loss = criterion(score, Variable(batch_label.cuda())) # + our_loss for our net according by Bias-Eliminated Semantic Refinement for Any-Shot Learning
                 print("%d/1000 steps,loss = %.4f"%(i,loss.item()))
                 optimizer.zero_grad()
