@@ -63,6 +63,7 @@ class Options():
         parser.add_argument('--att_Size', type=int, default=312, help='dataset semantic_dim')
         parser.add_argument('--hz', type=int, default=1024, help='size of the visual representation * 2')
         parser.add_argument('--iz', type=int, default=2048, help='dataset visual_dim')
+        parser.add_argument('--pre_epochs', type=int, default=200, help='pre_net_train,same as num_epochs')
         self.parser = parser
 
     def parse(self):

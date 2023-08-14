@@ -146,7 +146,8 @@ class data_loader_virtualCls(data.Dataset):
 
                                     #netN
                                     v_feat, i_feat, j_feat, decoder_xi, decoder_xj = ournet(feat.cuda(), lam, select_feat)
-
+                                    v_feat = torch.randn(1, 2048)
+                                    v_feat = v_feat.view(1, 2048)
                                     # att = lam*att+(1-lam)select_atts
                                     # or
                                     # att = ournet(lam,att,select_att)
@@ -158,13 +159,99 @@ class data_loader_virtualCls(data.Dataset):
                                     select_feats = torch.cat((select_feats.cuda(), v_feat.cuda()),0)
                                     select_atts = torch.cat((select_atts, v_att),0)
                                     select_labels[i*self.shots+j] = i - int(self.ways/2)
-                                    loss1 = mean_squared_error(decoder_xi, feat) + mean_squared_error(decoder_xj, select_feat)
-                                    loss2 = mean_squared_error(i_feat, att) + mean_squared_error(j_feat, select_att) + mean_squared_error(v_feat, v_att)
+                                    # loss1 = mean_squared_error(decoder_xi, feat) + mean_squared_error(decoder_xj, select_feat)
+                                    # loss2 = mean_squared_error(i_feat, att) + mean_squared_error(j_feat, select_att) + mean_squared_error(v_feat, v_att)
+
 
                 noval_index = int(self.ways/2)*self.shots
 
                 return select_feats[noval_index:], select_atts[noval_index:], select_labels[noval_index:]
-                
+
+        def __train_newnet__(self, index, ournet):
+                is_first = True
+                select_feats = []
+                select_atts = []
+                select_labels = []
+                select_labels = torch.LongTensor(self.ways * self.shots)
+                selected_classes = np.random.choice(list(self.classes), self.ways,False)  # AWA2和APY需要把这里改为True,CUN和SUN可以是False
+                # selected_classes = self.classes
+                # mixup
+                cls_idx = {}
+                loss1 = 0
+                loss2 = 0
+
+                for i in range(len(selected_classes)):
+                        idx = (self.labels == selected_classes[i]).nonzero()[0]
+                        select_instances = np.random.choice(idx, self.shots, False)
+                        lam = np.random.beta(5, 1)
+
+                        # if selected_classes[i] in [2,15]:
+                        #    cls_idx[selected_classes[i]] = i
+                        # lam = np.random.uniform(0.49,0.51)
+
+                        if i < self.ways / 2:
+                                for j in range(self.shots):
+                                        feat = self.feats[select_instances[j], :]
+                                        att = self.atts[select_instances[j], :]
+
+                                        feat = feat.unsqueeze(0)
+                                        att = att.unsqueeze(0)
+                                        # print(feat.size())
+                                        # print(att.size())
+                                        if is_first:
+                                                is_first = False
+                                                select_feats = feat
+                                                select_atts = att
+                                        else:
+                                                select_feats = torch.cat((select_feats, feat), 0)
+                                                select_atts = torch.cat((select_atts, att), 0)
+                                        select_labels[i * self.shots + j] = i
+                        else:
+                                for j in range(self.shots):
+                                        feat = self.feats[select_instances[j], :]
+                                        att = self.atts[select_instances[j], :]
+
+                                        feat = feat.unsqueeze(0)
+                                        select_feat = select_feats[int(i - self.ways / 2) * self.shots + j].cuda()
+                                        select_feat = select_feat.unsqueeze(0)
+                                        # feat = lam*feat+(1-lam)*select_feats[int(i-self.ways/2)*self.shots+j]
+                                        att = att.unsqueeze(0)
+                                        v_att = lam * att + (1 - lam) * select_atts[
+                                                int(i - self.ways / 2) * self.shots + j]
+                                        select_att = select_atts[int(i - self.ways / 2) * self.shots + j]
+                                        select_att = select_att.unsqueeze(0)
+                                        # our
+                                        # feat = ournet(lam,feat,select_feats)
+                                        # netG
+                                        # feat, G_noise1, G_noise2, G_noise3 = ournet(feat.cuda(), lam, select_feat)
+                                        # att = att.unsqueeze(0)
+                                        # att = lam * att + (1 - lam) * select_atts[int(i - self.ways / 2) * self.shots + j]
+
+                                        # netN
+                                        v_feat, i_feat, j_feat, decoder_xi, decoder_xj = ournet(feat.cuda(), lam,select_feat)
+
+                                        v_feat = torch.randn(1,2048)
+                                        v_feat = v_feat.view(1,2048)
+                                        # att = lam*att+(1-lam)select_atts
+                                        # or
+                                        # att = ournet(lam,att,select_att)
+                                        # feat = lam*feat+(1-lam)select_feat
+                                        # our loss -> net
+
+                                        # print(feat.size())
+                                        # print(att.size())
+                                        select_feats = torch.cat((select_feats.cuda(), v_feat.cuda()), 0)
+                                        select_atts = torch.cat((select_atts, v_att), 0)
+                                        select_labels[i * self.shots + j] = i - int(self.ways / 2)
+                                        mse1 = torch.nn.MSELoss(reduction="mean")
+                                        loss1 = mse1(decoder_xi, feat.cuda()) + mse1(decoder_xj,select_feat)
+                                        v_feat = torch.randn(1,312)
+                                        v_feat = v_feat.view(1,312)
+                                        loss2 = mse1(i_feat.cuda(), att.cuda()) + mse1(j_feat.cuda(),select_att.cuda()) + mse1(v_feat.cuda(), v_att.cuda())
+                loss = loss1 + loss2
+                return loss
+
+
         def __len__(self):
                 return self.__size
 

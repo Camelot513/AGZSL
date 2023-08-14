@@ -359,6 +359,14 @@ fb = open(summaryFile + filename, 'w')
 description=str(args)
 fb.write(description + '\n')
 
+for pre_epoch in range(args.pre_epochs):
+    netN.zero_grad()
+    loss = dataset.__train_newnet__(pre_epoch, netN)
+    loss.backward()
+    optimizer.step()
+
+netN.eval()
+
 for epoch in range(args.num_epochs):    
         epoch_loss = 0
         lr_scheduler.step()
