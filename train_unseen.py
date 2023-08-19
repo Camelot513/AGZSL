@@ -359,19 +359,37 @@ fb = open(summaryFile + filename, 'w')
 description=str(args)
 fb.write(description + '\n')
 
+
 for pre_epoch in range(args.pre_epochs):
-    netN.zero_grad()
-    loss = dataset.__train_newnet__(pre_epoch, netN)
-    loss.backward()
-    optimizer.step()
+    pre_epoch_loss = 0
+    print("%d epoch" % (pre_epoch))
+    for i in range(500):
+        netN.zero_grad()
+        pre_loss = dataset.__train_newnet__(pre_epoch, netN)
+        print("%d/500 steps,loss = %.4f" % (i, pre_loss.item()))
+        pre_loss.backward()
+        optimizer.step()
+        # pre_loss = torch.tensor(pre_loss)
+        pre_epoch_loss = pre_epoch_loss + pre_loss
+    pre_epoch_loss = pre_epoch_loss / 500
+    print("loss: %.4f" % pre_epoch_loss)
+    # pre_epoch_loss = pre_epoch_loss.data.cpu().numpy()
+    con = ('ep: %d, loss: %.4f' % (pre_epoch, pre_epoch_loss))
+    fb.write(con + '\n')
+    if(pre_epoch + 1) % 10 == 0:
+        model_save_path = f"pre_models/model_pre_epoch_{pre_epoch + 1}.pt"
+        torch.save(netN.state_dict(), model_save_path)
+        print(f"Saved model for epoch {pre_epoch} at {model_save_path}")
+#     # con = ('ep: %d, loss: %.4f' %(pre_epoch, pre_epoch_loss))
+#     # fb.write(con + '\n')
 
 netN.eval()
 
-for epoch in range(args.num_epochs):    
+for epoch in range(args.num_epochs):
         epoch_loss = 0
         lr_scheduler.step()
 
-        for i in range(1000):           
+        for i in range(1000):
                 batch_visual, batch_att, batch_label = dataset.__our_getitem__(i, netN) # __our_getitem__(i,ournet) use our net to process att and visual, and new att and visual
                 # batch_visual, batch_att, batch_label = dataset.__getitem__(i)
                 batch_visual = batch_visual.cuda()
@@ -442,12 +460,12 @@ for epoch in range(args.num_epochs):
 
         for param_group in optimizer.param_groups:
                 print('ep: %d,  lr: %lf, loss: %.4f,  zsl: %.4f, seenAcc: %.4f  gzsl: seen=%.4f, unseen=%.4f, h=%.4f, Rs=%.4f, Ru=%.4f ' % 
-                        (epoch, param_group['lr'],  epoch_loss, acc_zsl, seenAcc, acc_seen_gzsl, acc_unseen_gzsl, H, Rs, Ru,))            
-# fb.close()
+                        (epoch, param_group['lr'],  epoch_loss, acc_zsl, seenAcc, acc_seen_gzsl, acc_unseen_gzsl, H, Rs, Ru,))
+
 print(model_file_name)
 print('best_ep: %d, zsl: %.4f, seenAcc: %.4f  gzsl: seen=%.4f, unseen=%.4f, h=%.4f, Rs=%.4f, Ru=%.4f' % 
         (best_epoch, best_acc_zsl,best_seen_acc, best_acc_gzsl_seen, best_acc_gzsl_unseen, best_H, best_Rs, best_Ru))
+
 fb.write(('best_ep: %d, zsl: %.4f, seenAcc: %.4f  gzsl: seen=%.4f, unseen=%.4f, h=%.4f, Rs=%.4f, Ru=%.4f' %
         (best_epoch, best_acc_zsl,best_seen_acc, best_acc_gzsl_seen, best_acc_gzsl_unseen, best_H, best_Rs, best_Ru)) + '\n')
 fb.close()
-
