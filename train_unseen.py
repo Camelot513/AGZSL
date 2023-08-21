@@ -249,8 +249,8 @@ b2 = Variable(torch.FloatTensor(2048).cuda(), requires_grad=True)
 w_IAS = Variable(torch.FloatTensor(2048, att_dim).cuda(), requires_grad=True)
 b_IAS = Variable(torch.FloatTensor(att_dim).cuda(), requires_grad=True)
 
-our_net_w = Variable(torch.FloatTensor(2048, att_dim).cuda(), requires_grad=True)
-our_net_b = Variable(torch.FloatTensor(att_dim).cuda(), requires_grad=True)
+# our_net_w = Variable(torch.FloatTensor(2048, att_dim).cuda(), requires_grad=True)
+# our_net_b = Variable(torch.FloatTensor(att_dim).cuda(), requires_grad=True)
 
 w1.data.normal_(0, 0.02)
 w2.data.normal_(0, 0.02)
@@ -258,8 +258,8 @@ b1.data.fill_(0)
 b2.data.fill_(0)
 w_IAS.data.normal_(0,0.02)
 b_IAS.data.fill_(0)
-our_net_w.data.normal_(0,0.02)
-our_net_b.data.fill_(0)
+# our_net_w.data.normal_(0,0.02)
+# our_net_b.data.fill_(0)
 
 #New net-SRWGAN
 def weights_init(m):
@@ -377,7 +377,7 @@ for pre_epoch in range(args.pre_epochs):
     con = ('ep: %d, loss: %.4f' % (pre_epoch, pre_epoch_loss))
     fb.write(con + '\n')
     if(pre_epoch + 1) % 10 == 0:
-        model_save_path = f"pre_models/model_pre_epoch_{pre_epoch + 1}.pt"
+        model_save_path = f"pre_models/second_version/model_pre_epoch_{pre_epoch + 1}.pt"
         torch.save(netN.state_dict(), model_save_path)
         print(f"Saved model for epoch {pre_epoch} at {model_save_path}")
 #     # con = ('ep: %d, loss: %.4f' %(pre_epoch, pre_epoch_loss))
@@ -389,7 +389,7 @@ for epoch in range(args.num_epochs):
         epoch_loss = 0
         lr_scheduler.step()
 
-        for i in range(1000):
+        for i in range(100):
                 batch_visual, batch_att, batch_label = dataset.__our_getitem__(i, netN) # __our_getitem__(i,ournet) use our net to process att and visual, and new att and visual
                 # batch_visual, batch_att, batch_label = dataset.__getitem__(i)
                 batch_visual = batch_visual.cuda()

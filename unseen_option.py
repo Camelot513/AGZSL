@@ -21,7 +21,7 @@ class Options():
                             help='decay step')
         parser.add_argument('--gamma', default=0.5, type=float,
                             help='decay rate')
-        parser.add_argument('--num_epochs', default=200, type=int,
+        parser.add_argument('--num_epochs', default=4, type=int,
                             help='epoch number')                
         parser.add_argument('--nthreads', default=8,type=int,
                             help='threads num to load data')
@@ -60,10 +60,11 @@ class Options():
         parser.add_argument('--inputSize', type=int, default=4097, help='default value')
 
         #for our new_network
-        parser.add_argument('--oz', type=int, default=2048, help='dataset visual_dim')
+        parser.add_argument('--vz', type=int, default=2048, help='dataset visual_dim')
         parser.add_argument('--hz', type=int, default=1024, help='size of the visual representation * 2')
         parser.add_argument('--iz', type=int, default=2048, help='dataset visual_dim')
-        parser.add_argument('--pre_epochs', type=int, default=150, help='pre_net_train,same as num_epochs')
+        parser.add_argument('--pre_epochs', type=int, default=100, help='pre_net_train,same as num_epochs')
+        parser.add_argument('--att_size', type=int, default=312, help='dataset semantic size')
         self.parser = parser
 
     def parse(self):

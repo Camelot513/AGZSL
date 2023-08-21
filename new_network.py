@@ -6,7 +6,8 @@ class new_network(nn.Module):
         super(new_network, self).__init__()
         self.iz = args.iz
         self.hz = args.hz
-        self.attsize = args.att_Size
+        self.vz = args.vz
+        self.att_size = args.att_size
         # Encoder
         self.encoder_linear1 = nn.Linear(self.iz, self.hz)
         self.encoder_lrelu1 = nn.LeakyReLU(0.2, True)
@@ -15,13 +16,13 @@ class new_network(nn.Module):
         #Decoder
         self.decoder_linear1 = nn.Linear(self.iz, self.hz)
         self.decoder_lrelu1 = nn.LeakyReLU(0.2, True)
-        self.decoder_linear2 = nn.Linear(self.hz, self.iz)
+        self.decoder_linear2 = nn.Linear(self.hz, self.vz)
         self.decoder_sigmoid = nn.Sigmoid()
 
         #attReg
-        self.attReg_linear1 = nn.Linear(self.iz, self.hz)
+        self.attReg_linear1 = nn.Linear(self.vz, self.hz)
         self.attReg_lrelu1 = nn.LeakyReLU(0.2, True)
-        self.attReg_linear2 = nn.Linear(self.hz, args.att_Size)
+        self.attReg_linear2 = nn.Linear(self.hz, self.att_size)
         self.attReg_sigmoid = nn.Sigmoid()
 
     def forward(self, feat, lam, select_feats):
@@ -54,6 +55,6 @@ class new_network(nn.Module):
         attReg_h6 = self.attReg_linear2(attReg_h5)
         a_v = self.attReg_sigmoid(attReg_h6)
 
-        return a_i, a_j, a_v, x_i, x_j
+        return a_i, a_j, a_v, x_i, x_j, x_v
 
 
