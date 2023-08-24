@@ -174,8 +174,8 @@ class data_loader_virtualCls(data.Dataset):
                 # selected_classes = self.classes
                 # mixup
                 cls_idx = {}
-                loss1 = 0
-                loss2 = 0
+                loss_visual = 0
+                loss_att = 0
 
                 for i in range(len(selected_classes)):
                         idx = (self.labels == selected_classes[i]).nonzero()[0]
@@ -238,10 +238,10 @@ class data_loader_virtualCls(data.Dataset):
                                         select_atts = torch.cat((select_atts, att_v), 0)
                                         select_labels[i * self.shots + j] = i - int(self.ways / 2)
                                         mse1 = torch.nn.MSELoss(reduction="mean")
-                                        loss1 = mse1(i_feat, feat.cuda()) + mse1(j_feat,select_feat)
-                                        loss2 = mse1(i_att.cuda(), att.cuda()) + mse1(j_att.cuda(),select_att.cuda()) + mse1(v_att.cuda(), att_v.cuda())
-                loss = loss1 + loss2
-                return loss
+                                        loss_visual = mse1(i_feat, feat.cuda()) + mse1(j_feat,select_feat)
+                                        loss_att = mse1(i_att.cuda(), att.cuda()) + mse1(j_att.cuda(),select_att.cuda()) + mse1(v_att.cuda(), att_v.cuda())
+                loss = loss_visual + loss_att
+                return loss, loss_visual, loss_att
 
 
         def __len__(self):

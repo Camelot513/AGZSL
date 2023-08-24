@@ -29,6 +29,8 @@ os.environ['CUDA_VISIBLE_DEVICES'] = "0"
 args = Options().parse()
 model_file_name = './chk/' + args.model_file
 # summaryFolder = './summary/' + args.log_file
+if not os.path.exists('./chk'):
+    os.mkdir('./chk')
 # 获取当前日期
 now = datetime.datetime.now()
 date = now.strftime("%Y-%m-%d")
@@ -336,6 +338,7 @@ netN.cuda()
 # New_network
 optimizer = torch.optim.Adam(netN.parameters(), lr=args.lr)
 
+
 # breakpoint()
 step_size = args.step_size
 gamma = args.gamma
@@ -354,42 +357,51 @@ best_acc_gzsl_unseen = 0.0
 best_H = 0.0
 best_epoch = 0
 best_unseenAcc = 0.0
+
 # 打开txt记录训练信息
 fb = open(summaryFile + filename, 'w')
 description=str(args)
 fb.write(description + '\n')
-
-
+# 训练新网络的loss
 for pre_epoch in range(args.pre_epochs):
     pre_epoch_loss = 0
+    loss_visual_to = 0
+    loss_att_to = 0
     print("%d epoch" % (pre_epoch))
     for i in range(500):
         netN.zero_grad()
-        pre_loss = dataset.__train_newnet__(pre_epoch, netN)
-        print("%d/500 steps,loss = %.4f" % (i, pre_loss.item()))
+        pre_loss, loss_visual, loss_att = dataset.__train_newnet__(pre_epoch, netN)
+        print("%d/500 steps,loss = %.4f, loss_visual = %.4f, loss_att = %.4f" % (i, pre_loss.item(), loss_visual.item(), loss_att.item()))
         pre_loss.backward()
         optimizer.step()
         # pre_loss = torch.tensor(pre_loss)
         pre_epoch_loss = pre_epoch_loss + pre_loss
+        loss_visual_to = loss_visual_to + loss_visual
+        loss_att_to = loss_att_to + loss_att
     pre_epoch_loss = pre_epoch_loss / 500
+    loss_visual_to = loss_visual_to / 500
+    loss_att_to = loss_att_to / 500
     print("loss: %.4f" % pre_epoch_loss)
     # pre_epoch_loss = pre_epoch_loss.data.cpu().numpy()
-    con = ('ep: %d, loss: %.4f' % (pre_epoch, pre_epoch_loss))
+    con = ('ep: %d, loss: %.4f, loss_visual = %.4f, loss_att = %.4f"' % (pre_epoch, pre_epoch_loss, loss_visual_to, loss_att_to))
     fb.write(con + '\n')
-    if(pre_epoch + 1) % 10 == 0:
-        model_save_path = f"pre_models/second_version/model_pre_epoch_{pre_epoch + 1}.pt"
-        torch.save(netN.state_dict(), model_save_path)
-        print(f"Saved model for epoch {pre_epoch} at {model_save_path}")
-#     # con = ('ep: %d, loss: %.4f' %(pre_epoch, pre_epoch_loss))
-#     # fb.write(con + '\n')
+    # 保存训练模型
+    # if(pre_epoch + 1) % 10 == 0:
+    #     model_save_path = f"pre_models/second_version/model_pre_epoch_{pre_epoch + 1}.pt"
+    #     torch.save(netN.state_dict(), model_save_path)
+    #     print(f"Saved model for epoch {pre_epoch} at {model_save_path}")
 
+# # 加载已经保存的loss模型
+# model_path = "/data/xbjin_data/lw/ZSLearning/AGZSL-main/pre_models/second_version/model_pre_epoch_100.pt"
+# netN.load_state_dict(torch.load(model_path))
 netN.eval()
+
 
 for epoch in range(args.num_epochs):
         epoch_loss = 0
         lr_scheduler.step()
 
-        for i in range(100):
+        for i in range(1000):
                 batch_visual, batch_att, batch_label = dataset.__our_getitem__(i, netN) # __our_getitem__(i,ournet) use our net to process att and visual, and new att and visual
                 # batch_visual, batch_att, batch_label = dataset.__getitem__(i)
                 batch_visual = batch_visual.cuda()

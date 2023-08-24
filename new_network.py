@@ -1,6 +1,25 @@
 import numpy as np
 import torch
 import torch.nn as nn
+import torch.nn.init as init
+
+# def weights_init(m):
+#     classname = m.__class__.__name__
+#     if classname.find('Linear') != -1:
+#         m.weight.data.normal_(0.0, 0.02)
+#         m.bias.data.fill_(0)
+#     elif classname.find('BatchNorm') != -1:
+#         m.weight.data.normal_(1.0, 0.02)
+#         m.bias.data.fill_(0)
+def initialize_weights(net):
+    for m in net.modules():
+        if isinstance(m, nn.Linear):
+            init.normal_(m.weight.data, mean=0, std=0.02)
+            if m.bias is not None:
+                init.constant_(m.bias.data, 0)
+        elif isinstance(m, nn.BatchNorm1d) or isinstance(m, nn.BatchNorm2d):
+            init.normal_(m.weight.data, mean=1, std=0.02)
+            init.constant_(m.bias.data, 0)
 class new_network(nn.Module):
     def __init__(self, args):
         super(new_network, self).__init__()
@@ -23,7 +42,8 @@ class new_network(nn.Module):
         self.attReg_linear1 = nn.Linear(self.vz, self.hz)
         self.attReg_lrelu1 = nn.LeakyReLU(0.2, True)
         self.attReg_linear2 = nn.Linear(self.hz, self.att_size)
-        self.attReg_sigmoid = nn.Sigmoid()
+        # self.apply(weights_init)
+        initialize_weights(self)
 
     def forward(self, feat, lam, select_feats):
         #use encoder
@@ -46,14 +66,14 @@ class new_network(nn.Module):
 
         #use attReg
         attReg_h1 = self.attReg_lrelu1(self.attReg_linear1(x_i))
-        attReg_h2 = self.attReg_linear2(attReg_h1)
-        a_i = self.attReg_sigmoid(attReg_h2)
-        attReg_h3 = self.attReg_lrelu1(self.attReg_linear1(x_j))
-        attReg_h4 = self.attReg_linear2(attReg_h3)
-        a_j = self.attReg_sigmoid(attReg_h4)
-        attReg_h5 = self.attReg_lrelu1(self.attReg_linear1(x_v))
-        attReg_h6 = self.attReg_linear2(attReg_h5)
-        a_v = self.attReg_sigmoid(attReg_h6)
+        a_i = self.attReg_linear2(attReg_h1)
+        a_i = a_i / a_i.pow(2).sum(1).sqrt().unsqueeze(1).expand(a_i.size(0), a_i.size(1))
+        attReg_h2 = self.attReg_lrelu1(self.attReg_linear1(x_j))
+        a_j = self.attReg_linear2(attReg_h2)
+        a_j = a_j / a_j.pow(2).sum(1).sqrt().unsqueeze(1).expand(a_j.size(0), a_j.size(1))
+        attReg_h3 = self.attReg_lrelu1(self.attReg_linear1(x_v))
+        a_v = self.attReg_linear2(attReg_h3)
+        a_v = a_v / a_v.pow(2).sum(1).sqrt().unsqueeze(1).expand(a_v.size(0), a_v.size(1))
 
         return a_i, a_j, a_v, x_i, x_j, x_v
 
