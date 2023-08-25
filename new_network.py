@@ -38,18 +38,18 @@ class new_network(nn.Module):
         self.decoder_linear2 = nn.Linear(self.hz, self.vz)
         self.decoder_sigmoid = nn.Sigmoid()
 
-        #attReg
-        self.attReg_linear1 = nn.Linear(self.vz, self.hz)
-        self.attReg_lrelu1 = nn.LeakyReLU(0.2, True)
-        self.attReg_linear2 = nn.Linear(self.hz, self.att_size)
+        # #attReg
+        # self.attReg_linear1 = nn.Linear(self.vz, self.hz)
+        # self.attReg_lrelu1 = nn.LeakyReLU(0.2, True)
+        # self.attReg_linear2 = nn.Linear(self.hz, self.att_size)
         # self.apply(weights_init)
         initialize_weights(self)
 
-    def forward(self, feat, lam, select_feats):
+    def forward(self, feat, lam, select_feat):
         #use encoder
         encoder_h1 = self.encoder_lrelu1(self.encoder_linear1(feat))
         zi = self.encoder_linear2(encoder_h1)
-        encoder_h2 = self.encoder_lrelu1(self.encoder_linear1(select_feats))
+        encoder_h2 = self.encoder_lrelu1(self.encoder_linear1(select_feat))
         zj = self.encoder_linear2(encoder_h2)
         zv = lam*zi + (1-lam)*zj
 
@@ -64,17 +64,44 @@ class new_network(nn.Module):
         decoder_h6 = self.decoder_linear2(decoder_h5)
         x_v = self.decoder_sigmoid(decoder_h6)
 
-        #use attReg
-        attReg_h1 = self.attReg_lrelu1(self.attReg_linear1(x_i))
+        # #use attReg
+        # attReg_h1 = self.attReg_lrelu1(self.attReg_linear1(x_i))
+        # a_i = self.attReg_linear2(attReg_h1)
+        # a_i = a_i / a_i.pow(2).sum(1).sqrt().unsqueeze(1).expand(a_i.size(0), a_i.size(1))
+        # attReg_h2 = self.attReg_lrelu1(self.attReg_linear1(x_j))
+        # a_j = self.attReg_linear2(attReg_h2)
+        # a_j = a_j / a_j.pow(2).sum(1).sqrt().unsqueeze(1).expand(a_j.size(0), a_j.size(1))
+        # attReg_h3 = self.attReg_lrelu1(self.attReg_linear1(x_v))
+        # a_v = self.attReg_linear2(attReg_h3)
+        # a_v = a_v / a_v.pow(2).sum(1).sqrt().unsqueeze(1).expand(a_v.size(0), a_v.size(1))
+
+        return x_i, x_j, x_v
+
+class attNetwork(nn.Module):
+    def __init__(self, args):
+        super(attNetwork, self).__init__()
+        self.iz = args.iz
+        self.hz = args.hz
+        self.vz = args.vz
+        self.att_size = args.att_size
+        # attReg
+        self.attReg_linear1 = nn.Linear(self.vz, self.hz)
+        self.attReg_lrelu1 = nn.LeakyReLU(0.2, True)
+        self.attReg_linear2 = nn.Linear(self.hz, self.att_size)
+        initialize_weights(self)
+
+    def forward(self, feat, select_feat, v_feat):
+        # use attReg
+        attReg_h1 = self.attReg_lrelu1(self.attReg_linear1(feat))
         a_i = self.attReg_linear2(attReg_h1)
         a_i = a_i / a_i.pow(2).sum(1).sqrt().unsqueeze(1).expand(a_i.size(0), a_i.size(1))
-        attReg_h2 = self.attReg_lrelu1(self.attReg_linear1(x_j))
+        attReg_h2 = self.attReg_lrelu1(self.attReg_linear1(select_feat))
         a_j = self.attReg_linear2(attReg_h2)
         a_j = a_j / a_j.pow(2).sum(1).sqrt().unsqueeze(1).expand(a_j.size(0), a_j.size(1))
-        attReg_h3 = self.attReg_lrelu1(self.attReg_linear1(x_v))
+        attReg_h3 = self.attReg_lrelu1(self.attReg_linear1(v_feat))
         a_v = self.attReg_linear2(attReg_h3)
         a_v = a_v / a_v.pow(2).sum(1).sqrt().unsqueeze(1).expand(a_v.size(0), a_v.size(1))
+        return a_i, a_j, a_v
 
-        return a_i, a_j, a_v, x_i, x_j, x_v
 
 

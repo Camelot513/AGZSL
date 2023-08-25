@@ -86,7 +86,7 @@ class data_loader_virtualCls(data.Dataset):
 
                 return select_feats[noval_index:], select_atts[noval_index:], select_labels[noval_index:]
 
-        def __our_getitem__(self, index, ournet):
+        def __our_getitem__(self, index, netn, neta):
                 is_first = True
                 select_feats = []
                 select_atts = []
@@ -135,8 +135,8 @@ class data_loader_virtualCls(data.Dataset):
                                     # feat = lam*feat+(1-lam)*select_feats[int(i-self.ways/2)*self.shots+j]
                                     att = att.unsqueeze(0)
                                     att_v = lam*att+(1-lam)*select_atts[int(i-self.ways/2)*self.shots+j]
-                                    select_att = select_atts[int(i-self.ways/2)*self.shots+j]
-                                    select_att = select_att.unsqueeze(0)
+                                    # select_att = select_atts[int(i-self.ways/2)*self.shots+j]
+                                    # select_att = select_att.unsqueeze(0)
                                     # our
                                     # feat = ournet(lam,feat,select_feats)
                                     #netG
@@ -144,8 +144,10 @@ class data_loader_virtualCls(data.Dataset):
                                     # att = att.unsqueeze(0)
                                     # att = lam * att + (1 - lam) * select_atts[int(i - self.ways / 2) * self.shots + j]
 
-                                    #netN
-                                    i_att, j_att, v_att, i_feat, j_feat, v_feat = ournet(feat.cuda(), lam, select_feat.cuda())
+                                    # netN
+                                    i_feat, j_feat, v_feat = netn(feat.cuda(), lam, select_feat.cuda())
+                                    # netA
+                                    i_att, j_att, v_att = neta(feat.cuda(), select_feat.cuda(), v_feat.cuda())
 
                                     # att = lam*att+(1-lam)select_atts
                                     # or
@@ -164,7 +166,7 @@ class data_loader_virtualCls(data.Dataset):
 
                 return select_feats[noval_index:], select_atts[noval_index:], select_labels[noval_index:]
 
-        def __train_newnet__(self, index, ournet):
+        def __train_newnet__(self, index, netn, neta):
                 is_first = True
                 select_feats = []
                 select_atts = []
@@ -224,7 +226,9 @@ class data_loader_virtualCls(data.Dataset):
                                         # att = lam * att + (1 - lam) * select_atts[int(i - self.ways / 2) * self.shots + j]
 
                                         # netN
-                                        i_att, j_att, v_att, i_feat, j_feat, v_feat = ournet(feat.cuda(), lam, select_feat.cuda())
+                                        i_feat, j_feat, v_feat = netn(feat.cuda(), lam, select_feat.cuda())
+                                        # netA
+                                        i_att, j_att, v_att = neta(feat.cuda(), select_feat.cuda(), v_feat.cuda())
 
                                         # att = lam*att+(1-lam)select_atts
                                         # or

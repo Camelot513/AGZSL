@@ -202,11 +202,6 @@ att_name = 'att'
 attribute = matcontent[att_name].T
 
 
-
-
-
-
-
 clsname = [ matcontent['allclasses_names'][i][0][0] for i in range(len(matcontent['allclasses_names']))]
 train_x = np.array(feature[trainvalloc])
 train_label = np.array(label[trainvalloc])
@@ -251,8 +246,8 @@ b2 = Variable(torch.FloatTensor(2048).cuda(), requires_grad=True)
 w_IAS = Variable(torch.FloatTensor(2048, att_dim).cuda(), requires_grad=True)
 b_IAS = Variable(torch.FloatTensor(att_dim).cuda(), requires_grad=True)
 
-# our_net_w = Variable(torch.FloatTensor(2048, att_dim).cuda(), requires_grad=True)
-# our_net_b = Variable(torch.FloatTensor(att_dim).cuda(), requires_grad=True)
+our_net_w = Variable(torch.FloatTensor(2048, att_dim).cuda(), requires_grad=True)
+our_net_b = Variable(torch.FloatTensor(att_dim).cuda(), requires_grad=True)
 
 w1.data.normal_(0, 0.02)
 w2.data.normal_(0, 0.02)
@@ -260,8 +255,8 @@ b1.data.fill_(0)
 b2.data.fill_(0)
 w_IAS.data.normal_(0,0.02)
 b_IAS.data.fill_(0)
-# our_net_w.data.normal_(0,0.02)
-# our_net_b.data.fill_(0)
+our_net_w.data.normal_(0,0.02)
+our_net_b.data.fill_(0)
 
 #New net-SRWGAN
 def weights_init(m):
@@ -328,19 +323,24 @@ netG.cuda()
 
 # New_network
 from new_network import new_network
+from new_network import attNetwork
 netN = new_network(args)
 netN.cuda()
 
+netA = attNetwork(args)
+netA.cuda()
+
 # add our net parameter
-# optimizer = torch.optim.Adam([w_IAS,b_IAS,w1, b1, w2, b2, bias, scale_cls,our_net_w,our_net_b], lr=args.lr, weight_decay=args.opt_decay)
-#our
-# optimizer = torch.optim.Adam(netG.parameters(), lr=args.lr, betas=(args.beta1, 0.999))
+optimizer = torch.optim.Adam([w_IAS,b_IAS,w1, b1, w2, b2, bias, scale_cls,our_net_w,our_net_b], lr=args.lr, weight_decay=args.opt_decay)
+
 # New_network
-optimizer = torch.optim.Adam(netN.parameters(), lr=args.lr)
+optimizerN = torch.optim.Adam(netN.parameters(), lr=args.lr)
+optimizerA = torch.optim.Adam(netA.parameters(), lr=args.lr)
 
 
 # breakpoint()
 step_size = args.step_size
+
 gamma = args.gamma
 lr_scheduler = lr_scheduler.StepLR(optimizer, step_size=step_size, gamma=gamma)
 criterion = nn.CrossEntropyLoss()
@@ -370,10 +370,13 @@ for pre_epoch in range(args.pre_epochs):
     print("%d epoch" % (pre_epoch))
     for i in range(500):
         netN.zero_grad()
-        pre_loss, loss_visual, loss_att = dataset.__train_newnet__(pre_epoch, netN)
+        netA.zero_grad()
+        pre_loss, loss_visual, loss_att = dataset.__train_newnet__(pre_epoch, netN, netA)
         print("%d/500 steps,loss = %.4f, loss_visual = %.4f, loss_att = %.4f" % (i, pre_loss.item(), loss_visual.item(), loss_att.item()))
-        pre_loss.backward()
-        optimizer.step()
+        loss_visual.backward(retain_graph=True)
+        loss_att.backward(retain_graph=True)
+        optimizerN.step()
+        optimizerA.step()
         # pre_loss = torch.tensor(pre_loss)
         pre_epoch_loss = pre_epoch_loss + pre_loss
         loss_visual_to = loss_visual_to + loss_visual
@@ -381,28 +384,27 @@ for pre_epoch in range(args.pre_epochs):
     pre_epoch_loss = pre_epoch_loss / 500
     loss_visual_to = loss_visual_to / 500
     loss_att_to = loss_att_to / 500
-    print("loss: %.4f" % pre_epoch_loss)
-    # pre_epoch_loss = pre_epoch_loss.data.cpu().numpy()
+    print("loss: %.4f, loss_visual: %.4f, loss_att: %.4f" % (pre_epoch_loss, loss_visual_to, loss_att_to))
     con = ('ep: %d, loss: %.4f, loss_visual = %.4f, loss_att = %.4f"' % (pre_epoch, pre_epoch_loss, loss_visual_to, loss_att_to))
     fb.write(con + '\n')
-    # 保存训练模型
-    # if(pre_epoch + 1) % 10 == 0:
-    #     model_save_path = f"pre_models/second_version/model_pre_epoch_{pre_epoch + 1}.pt"
-    #     torch.save(netN.state_dict(), model_save_path)
-    #     print(f"Saved model for epoch {pre_epoch} at {model_save_path}")
+#     # 保存训练模型
+#     if(pre_epoch + 1) % 10 == 0:
+#         model_save_path = f"pre_models/second_version/model_pre_epoch_{pre_epoch + 1}.pt"
+#         torch.save(netN.state_dict(), model_save_path)
+#         print(f"Saved model for epoch {pre_epoch} at {model_save_path}"
 
 # # 加载已经保存的loss模型
 # model_path = "/data/xbjin_data/lw/ZSLearning/AGZSL-main/pre_models/second_version/model_pre_epoch_100.pt"
 # netN.load_state_dict(torch.load(model_path))
 netN.eval()
-
+netA.eval()
 
 for epoch in range(args.num_epochs):
         epoch_loss = 0
         lr_scheduler.step()
 
         for i in range(1000):
-                batch_visual, batch_att, batch_label = dataset.__our_getitem__(i, netN) # __our_getitem__(i,ournet) use our net to process att and visual, and new att and visual
+                batch_visual, batch_att, batch_label = dataset.__our_getitem__(i, netN, netA) # __our_getitem__(i,ournet) use our net to process att and visual, and new att and visual
                 # batch_visual, batch_att, batch_label = dataset.__getitem__(i)
                 batch_visual = batch_visual.cuda()
                 batch_visual_norm = F.normalize(batch_visual, p=2, dim=batch_visual.dim()-1, eps=1e-12)                         
@@ -415,9 +417,7 @@ for epoch in range(args.num_epochs):
 
                 score = apply_classification_weights(batch_visual_norm, all_cls_weights)
                 score = score.squeeze(0)
-                # design our_loss = .. .
-                
-
+                # design our loss...
                 loss = criterion(score, Variable(batch_label.cuda())) # + our_loss for our net according by Bias-Eliminated Semantic Refinement for Any-Shot Learning
                 print("%d/1000 steps,loss = %.4f"%(i,loss.item()))
                 optimizer.zero_grad()
