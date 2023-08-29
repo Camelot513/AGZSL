@@ -90,18 +90,11 @@ class attNetwork(nn.Module):
         self.attReg_linear2 = nn.Linear(self.hz, self.att_size)
         initialize_weights(self)
 
-    def forward(self, feat, select_feat, v_feat):
+    def forward(self, feat):
         # use attReg
         attReg_h1 = self.attReg_lrelu1(self.attReg_linear1(feat))
-        a_i = self.attReg_linear2(attReg_h1)
-        a_i = a_i / a_i.pow(2).sum(1).sqrt().unsqueeze(1).expand(a_i.size(0), a_i.size(1))
-        attReg_h2 = self.attReg_lrelu1(self.attReg_linear1(select_feat))
-        a_j = self.attReg_linear2(attReg_h2)
-        a_j = a_j / a_j.pow(2).sum(1).sqrt().unsqueeze(1).expand(a_j.size(0), a_j.size(1))
-        attReg_h3 = self.attReg_lrelu1(self.attReg_linear1(v_feat))
-        a_v = self.attReg_linear2(attReg_h3)
-        a_v = a_v / a_v.pow(2).sum(1).sqrt().unsqueeze(1).expand(a_v.size(0), a_v.size(1))
-        return a_i, a_j, a_v
-
+        att_pred = self.attReg_linear2(attReg_h1)
+        att_pred = att_pred / att_pred.pow(2).sum(1).sqrt().unsqueeze(1).expand(att_pred.size(0), att_pred.size(1))
+        return att_pred
 
 

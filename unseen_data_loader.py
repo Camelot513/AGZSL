@@ -67,15 +67,6 @@ class data_loader_virtualCls(data.Dataset):
                                     feat = lam*feat+(1-lam)*select_feats[int(i-self.ways/2)*self.shots+j]
                                     att = att.unsqueeze(0)
                                     att = lam*att+(1-lam)*select_atts[int(i-self.ways/2)*self.shots+j]
-                                    # feat = lam*feat+(1-lam)select_feats
-                                    # att =  att*feat+(1-lam)select_atts
-                                    # our
-                                    # feat = net(lam,feat,select_feats)
-                                    # att = lam*att+(1-lam)select_atts
-                                    # or
-                                    # att = net(lam,att,select_att)
-                                    # feat = lam*feat+(1-lam)select_feat
-                                    # our loss -> net
                                     # print(feat.size())
                                     # print(att.size())
                                     select_feats = torch.cat((select_feats, feat),0)                
@@ -86,7 +77,7 @@ class data_loader_virtualCls(data.Dataset):
 
                 return select_feats[noval_index:], select_atts[noval_index:], select_labels[noval_index:]
 
-        def __our_getitem__(self, index, netn, neta):
+        def __our_getitem__(self, index, netn):
                 is_first = True
                 select_feats = []
                 select_atts = []
@@ -145,9 +136,9 @@ class data_loader_virtualCls(data.Dataset):
                                     # att = lam * att + (1 - lam) * select_atts[int(i - self.ways / 2) * self.shots + j]
 
                                     # netN
-                                    i_feat, j_feat, v_feat = netn(feat.cuda(), lam, select_feat.cuda())
+                                    _, _, v_feat = netn(feat.cuda(), lam, select_feat.cuda())
                                     # netA
-                                    i_att, j_att, v_att = neta(feat.cuda(), select_feat.cuda(), v_feat.cuda())
+                                    # i_att, j_att, v_att = neta(feat.cuda(), select_feat.cuda(), v_feat.cuda())
 
                                     # att = lam*att+(1-lam)select_atts
                                     # or
@@ -166,7 +157,7 @@ class data_loader_virtualCls(data.Dataset):
 
                 return select_feats[noval_index:], select_atts[noval_index:], select_labels[noval_index:]
 
-        def __train_newnet__(self, index, netn, neta):
+        def __train_newnet__(self, index, netn, neta, optimizer_netn, optimizer_neta):
                 is_first = True
                 select_feats = []
                 select_atts = []
@@ -178,16 +169,17 @@ class data_loader_virtualCls(data.Dataset):
                 cls_idx = {}
                 loss_visual = 0
                 loss_att = 0
+                feat_vec = []
+                select_feat_vec = []
+                att_vec = []
+                select_att_vec = []
+                v_att_vec = []
+                lam = 0
 
                 for i in range(len(selected_classes)):
                         idx = (self.labels == selected_classes[i]).nonzero()[0]
                         select_instances = np.random.choice(idx, self.shots, False)
                         lam = np.random.beta(5, 1)
-
-                        # if selected_classes[i] in [2,15]:
-                        #    cls_idx[selected_classes[i]] = i
-                        # lam = np.random.uniform(0.49,0.51)
-
                         if i < self.ways / 2:
                                 for j in range(self.shots):
                                         feat = self.feats[select_instances[j], :]
@@ -195,8 +187,6 @@ class data_loader_virtualCls(data.Dataset):
 
                                         feat = feat.unsqueeze(0)
                                         att = att.unsqueeze(0)
-                                        # print(feat.size())
-                                        # print(att.size())
                                         if is_first:
                                                 is_first = False
                                                 select_feats = feat
@@ -206,6 +196,18 @@ class data_loader_virtualCls(data.Dataset):
                                                 select_atts = torch.cat((select_atts, att), 0)
                                         select_labels[i * self.shots + j] = i
                         else:
+                                idx = (self.labels == selected_classes[i]).nonzero()[0]
+                                select_instances = np.random.choice(idx, self.shots, False)
+                                lam = np.random.beta(5, 1)
+
+                                is_first = True
+
+                                # feat_vec = []
+                                # select_feat_vec = []
+                                # att_vec = []
+                                # select_att_vec = []
+                                # v_att_vec = []
+
                                 for j in range(self.shots):
                                         feat = self.feats[select_instances[j], :]
                                         att = self.atts[select_instances[j], :]
@@ -213,38 +215,54 @@ class data_loader_virtualCls(data.Dataset):
                                         feat = feat.unsqueeze(0)
                                         select_feat = select_feats[int(i - self.ways / 2) * self.shots + j].cuda()
                                         select_feat = select_feat.unsqueeze(0)
-                                        # feat = lam*feat+(1-lam)*select_feats[int(i-self.ways/2)*self.shots+j]
+
                                         att = att.unsqueeze(0)
                                         att_v = lam * att + (1 - lam) * select_atts[int(i - self.ways / 2) * self.shots + j]
                                         select_att = select_atts[int(i - self.ways / 2) * self.shots + j]
                                         select_att = select_att.unsqueeze(0)
-                                        # our
-                                        # feat = ournet(lam,feat,select_feats)
-                                        # netG
-                                        # feat, G_noise1, G_noise2, G_noise3 = ournet(feat.cuda(), lam, select_feat)
-                                        # att = att.unsqueeze(0)
-                                        # att = lam * att + (1 - lam) * select_atts[int(i - self.ways / 2) * self.shots + j]
 
-                                        # netN
-                                        i_feat, j_feat, v_feat = netn(feat.cuda(), lam, select_feat.cuda())
-                                        # netA
-                                        i_att, j_att, v_att = neta(feat.cuda(), select_feat.cuda(), v_feat.cuda())
+                                        if is_first:
+                                                is_first = False
+                                                feat_vec = feat
+                                                select_feat_vec = select_feat
+                                                att_vec = att
+                                                select_att_vec = select_att
+                                                v_att_vec = att_v
+                                        else:
+                                                feat_vec = torch.cat((feat_vec, feat),0)
+                                                select_feat_vec = torch.cat((select_feat_vec, select_feat), 0)
+                                                att_vec = torch.cat((att_vec, att), 0)
+                                                select_att_vec = torch.cat((select_att_vec, select_att), 0)
+                                                v_att_vec = torch.cat((v_att_vec, att_v), 0)
 
-                                        # att = lam*att+(1-lam)select_atts
-                                        # or
-                                        # att = ournet(lam,att,select_att)
-                                        # feat = lam*feat+(1-lam)select_feat
-                                        # our loss -> net
+                mse1 = torch.nn.MSELoss(reduction="mean")
+                # Training netA
+                for p in neta.parameters():
+                        p.requires_grad_(True)
+                for p in netn.parameters():
+                        p.requires_grad_(False)
+                neta.zero_grad()
+                i_att = neta(feat_vec.cuda())
+                j_att = neta(select_feat_vec.cuda())
+                loss_att = mse1(i_att.cuda(), att_vec.cuda()) + mse1(j_att.cuda(), select_att_vec.cuda())
+                loss_att.backward()
+                optimizer_neta.step()
 
-                                        # print(feat.size())
-                                        # print(att.size())
-                                        select_feats = torch.cat((select_feats.cuda(), v_feat.cuda()), 0)
-                                        select_atts = torch.cat((select_atts, att_v), 0)
-                                        select_labels[i * self.shots + j] = i - int(self.ways / 2)
-                                        mse1 = torch.nn.MSELoss(reduction="mean")
-                                        loss_visual = mse1(i_feat, feat.cuda()) + mse1(j_feat,select_feat)
-                                        loss_att = mse1(i_att.cuda(), att.cuda()) + mse1(j_att.cuda(),select_att.cuda()) + mse1(v_att.cuda(), att_v.cuda())
+                # Training netN
+                for p in neta.parameters():
+                        p.requires_grad_(False)
+                for p in netn.parameters():
+                        p.requires_grad_(True)
+                netn.zero_grad()
+                i_feat, j_feat, v_feat = netn(feat_vec.cuda(), lam, select_feat_vec.cuda())
+                v_att = neta(v_feat.cuda())
+                loss_visual = mse1(i_feat.cuda(), feat_vec.cuda()) + mse1(j_feat.cuda(), select_feat_vec.cuda()) + mse1(
+                        v_att.cuda(), v_att_vec.cuda())
+                loss_visual.backward()
+                optimizer_netn.step()
+
                 loss = loss_visual + loss_att
+
                 return loss, loss_visual, loss_att
 
 

@@ -69,7 +69,7 @@ def init_seeds(seed=0):
 
 init_seeds(520)
 def calc_accuracy(test_visual, test_label, attM, test_id, test_id_seen_unseen,cossim=False):       
-        outpred = [0] * test_visual.shape[0]    
+        outpred = [0] * test_visual.shape[0]
         end = 0
         outpred_list = []
         zslpred_list = []
@@ -129,7 +129,7 @@ def calc_accuracy(test_visual, test_label, attM, test_id, test_id_seen_unseen,co
 
 
 def compute_accuracy_all(test_att, att_all, test_visual_unseen, test_id_unseen, test_label_unseen,
-                test_visual_seen, test_id_all, test_label_seen,train_id):
+                test_visual_seen, test_id_all, test_label_seen, train_id):
 
         acc_zsl,_,unseenacc_cls,_,unseenpred_cls = calc_accuracy(test_visual_unseen, test_label_unseen, test_att, test_id_unseen,test_id_unseen)
         acc_seenAcc,_,seenacc_cls,_,_ = calc_accuracy(test_visual_seen, test_label_seen, att_all, train_id, train_id)
@@ -246,8 +246,8 @@ b2 = Variable(torch.FloatTensor(2048).cuda(), requires_grad=True)
 w_IAS = Variable(torch.FloatTensor(2048, att_dim).cuda(), requires_grad=True)
 b_IAS = Variable(torch.FloatTensor(att_dim).cuda(), requires_grad=True)
 
-our_net_w = Variable(torch.FloatTensor(2048, att_dim).cuda(), requires_grad=True)
-our_net_b = Variable(torch.FloatTensor(att_dim).cuda(), requires_grad=True)
+# our_net_w = Variable(torch.FloatTensor(2048, att_dim).cuda(), requires_grad=True)
+# our_net_b = Variable(torch.FloatTensor(att_dim).cuda(), requires_grad=True)
 
 w1.data.normal_(0, 0.02)
 w2.data.normal_(0, 0.02)
@@ -255,8 +255,8 @@ b1.data.fill_(0)
 b2.data.fill_(0)
 w_IAS.data.normal_(0,0.02)
 b_IAS.data.fill_(0)
-our_net_w.data.normal_(0,0.02)
-our_net_b.data.fill_(0)
+# our_net_w.data.normal_(0,0.02)
+# our_net_b.data.fill_(0)
 
 #New net-SRWGAN
 def weights_init(m):
@@ -331,7 +331,7 @@ netA = attNetwork(args)
 netA.cuda()
 
 # add our net parameter
-optimizer = torch.optim.Adam([w_IAS,b_IAS,w1, b1, w2, b2, bias, scale_cls,our_net_w,our_net_b], lr=args.lr, weight_decay=args.opt_decay)
+optimizer = torch.optim.Adam([w_IAS,b_IAS,w1, b1, w2, b2, bias, scale_cls], lr=args.lr, weight_decay=args.opt_decay)
 
 # New_network
 optimizerN = torch.optim.Adam(netN.parameters(), lr=args.lr)
@@ -363,39 +363,33 @@ fb = open(summaryFile + filename, 'w')
 description=str(args)
 fb.write(description + '\n')
 # 训练新网络的loss
-for pre_epoch in range(args.pre_epochs):
-    pre_epoch_loss = 0
-    loss_visual_to = 0
-    loss_att_to = 0
-    print("%d epoch" % (pre_epoch))
-    for i in range(500):
-        netN.zero_grad()
-        netA.zero_grad()
-        pre_loss, loss_visual, loss_att = dataset.__train_newnet__(pre_epoch, netN, netA)
-        print("%d/500 steps,loss = %.4f, loss_visual = %.4f, loss_att = %.4f" % (i, pre_loss.item(), loss_visual.item(), loss_att.item()))
-        loss_visual.backward(retain_graph=True)
-        loss_att.backward(retain_graph=True)
-        optimizerN.step()
-        optimizerA.step()
-        # pre_loss = torch.tensor(pre_loss)
-        pre_epoch_loss = pre_epoch_loss + pre_loss
-        loss_visual_to = loss_visual_to + loss_visual
-        loss_att_to = loss_att_to + loss_att
-    pre_epoch_loss = pre_epoch_loss / 500
-    loss_visual_to = loss_visual_to / 500
-    loss_att_to = loss_att_to / 500
-    print("loss: %.4f, loss_visual: %.4f, loss_att: %.4f" % (pre_epoch_loss, loss_visual_to, loss_att_to))
-    con = ('ep: %d, loss: %.4f, loss_visual = %.4f, loss_att = %.4f"' % (pre_epoch, pre_epoch_loss, loss_visual_to, loss_att_to))
-    fb.write(con + '\n')
+# for pre_epoch in range(args.pre_epochs):
+#     pre_epoch_loss = 0
+#     loss_visual_to = 0
+#     loss_att_to = 0
+#     print("%d epoch" % (pre_epoch))
+#     for i in range(500):
+#         pre_loss, loss_visual, loss_att = dataset.__train_newnet__(pre_epoch, netN, netA, optimizerN, optimizerA)
+#         print("%d/500 steps,loss = %.4f, loss_visual = %.4f, loss_att = %.4f" % (i, pre_loss.item(), loss_visual.item(), loss_att.item()))
+#         # pre_loss = torch.tensor(pre_loss)
+#         pre_epoch_loss = pre_epoch_loss + pre_loss
+#         loss_visual_to = loss_visual_to + loss_visual
+#         loss_att_to = loss_att_to + loss_att
+#     pre_epoch_loss = pre_epoch_loss / 500
+#     loss_visual_to = loss_visual_to / 500
+#     loss_att_to = loss_att_to / 500
+#     print("loss: %.4f, loss_visual: %.4f, loss_att: %.4f" % (pre_epoch_loss, loss_visual_to, loss_att_to))
+#     con = ('ep: %d, loss: %.4f, loss_visual = %.4f, loss_att = %.4f"' % (pre_epoch, pre_epoch_loss, loss_visual_to, loss_att_to))
+#     fb.write(con + '\n')
 #     # 保存训练模型
 #     if(pre_epoch + 1) % 10 == 0:
-#         model_save_path = f"pre_models/second_version/model_pre_epoch_{pre_epoch + 1}.pt"
+#         model_save_path = f"pre_models/third_version/model_pre_epoch_{pre_epoch + 1}.pt"
 #         torch.save(netN.state_dict(), model_save_path)
-#         print(f"Saved model for epoch {pre_epoch} at {model_save_path}"
+#         print(f"Saved model for epoch {pre_epoch} at {model_save_path}")
 
 # # 加载已经保存的loss模型
-# model_path = "/data/xbjin_data/lw/ZSLearning/AGZSL-main/pre_models/second_version/model_pre_epoch_100.pt"
-# netN.load_state_dict(torch.load(model_path))
+model_path = "/data/xbjin_data/lw/ZSLearning/AGZSL-main/pre_models/third_version/model_pre_epoch_120.pt"
+netN.load_state_dict(torch.load(model_path))
 netN.eval()
 netA.eval()
 
@@ -404,7 +398,7 @@ for epoch in range(args.num_epochs):
         lr_scheduler.step()
 
         for i in range(1000):
-                batch_visual, batch_att, batch_label = dataset.__our_getitem__(i, netN, netA) # __our_getitem__(i,ournet) use our net to process att and visual, and new att and visual
+                batch_visual, batch_att, batch_label = dataset.__our_getitem__(i, netN) # __our_getitem__(i,ournet) use our net to process att and visual, and new att and visual
                 # batch_visual, batch_att, batch_label = dataset.__getitem__(i)
                 batch_visual = batch_visual.cuda()
                 batch_visual_norm = F.normalize(batch_visual, p=2, dim=batch_visual.dim()-1, eps=1e-12)                         
@@ -412,8 +406,7 @@ for epoch in range(args.num_epochs):
                 indx = torch.tensor(list(range(0, ways*shots, shots)))  
                 unique_batch_att = torch.index_select(batch_att, 0, indx).float().cuda()                
 
-                batch_weights = forward(unique_batch_att,batch_visual_norm,tmp=TMP)       
-                all_cls_weights = batch_weights
+                all_cls_weights = forward(unique_batch_att,batch_visual_norm,tmp=TMP)
 
                 score = apply_classification_weights(batch_visual_norm, all_cls_weights)
                 score = score.squeeze(0)
