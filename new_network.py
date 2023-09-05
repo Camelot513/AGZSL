@@ -36,7 +36,7 @@ class new_network(nn.Module):
         self.decoder_linear1 = nn.Linear(self.iz, self.hz)
         self.decoder_lrelu1 = nn.LeakyReLU(0.2, True)
         self.decoder_linear2 = nn.Linear(self.hz, self.vz)
-        self.decoder_sigmoid = nn.Sigmoid()
+        # self.decoder_sigmoid = nn.Sigmoid()
 
         # #attReg
         # self.attReg_linear1 = nn.Linear(self.vz, self.hz)
@@ -55,14 +55,14 @@ class new_network(nn.Module):
 
         #use decoder
         decoder_h1 = self.decoder_lrelu1(self.decoder_linear1(zi))
-        decoder_h2 = self.decoder_linear2(decoder_h1)
-        x_i = self.decoder_sigmoid(decoder_h2)
+        x_i = self.decoder_linear2(decoder_h1)
+        # x_i = self.decoder_sigmoid(decoder_h2)
         decoder_h3 = self.decoder_lrelu1(self.decoder_linear1(zj))
-        decoder_h4 = self.decoder_linear2(decoder_h3)
-        x_j = self.decoder_sigmoid(decoder_h4)
+        x_j = self.decoder_linear2(decoder_h3)
+        # x_j = self.decoder_sigmoid(decoder_h4)
         decoder_h5 = self.decoder_lrelu1(self.decoder_linear1(zv))
-        decoder_h6 = self.decoder_linear2(decoder_h5)
-        x_v = self.decoder_sigmoid(decoder_h6)
+        x_v = self.decoder_linear2(decoder_h5)
+        # x_v = self.decoder_sigmoid(decoder_h6)
 
         # #use attReg
         # attReg_h1 = self.attReg_lrelu1(self.attReg_linear1(x_i))

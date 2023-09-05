@@ -163,7 +163,7 @@ class data_loader_virtualCls(data.Dataset):
                 select_atts = []
                 select_labels = []
                 select_labels = torch.LongTensor(self.ways * self.shots)
-                selected_classes = np.random.choice(list(self.classes), self.ways,False)  # AWA2和APY需要把这里改为True,CUN和SUN可以是False
+                selected_classes = np.random.choice(list(self.classes), self.ways, False)  # AWA2和APY需要把这里改为True,CUN和SUN可以是False
                 # selected_classes = self.classes
                 # mixup
                 cls_idx = {}
@@ -262,8 +262,8 @@ class data_loader_virtualCls(data.Dataset):
                 optimizer_netn.step()
 
                 loss = loss_visual + loss_att
-
-                return loss, loss_visual, loss_att
+                loss_visual_mse_vatt = mse1(v_att.cuda(), v_att_vec.cuda())
+                return loss, loss_visual, loss_att, loss_visual_mse_vatt
 
 
         def __len__(self):
