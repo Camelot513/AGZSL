@@ -621,3 +621,17 @@ def measure_time(enter_msg, verbose=True):
   yield
   if verbose:
     print('Done, {:.2f}s'.format(time.time() - st))
+
+
+def permute_dims(hs, hn):
+  assert hs.dim() == 2
+  assert hn.dim() == 2
+
+  B, _ = hs.size()
+
+  perm = torch.randperm(B).to(hs.device)
+  perm_hs = hs[perm]
+  perm = torch.randperm(B).to(hs.device)
+  perm_hn = hn[perm]
+
+  return perm_hs, perm_hn

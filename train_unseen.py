@@ -6,6 +6,7 @@ from scipy import io
 import numpy as np
 import torch
 import torch.nn as nn
+from sklearn import preprocessing
 from torch.autograd import Variable
 from torch.nn import functional as F
 from torch.optim import lr_scheduler
@@ -25,7 +26,7 @@ import datetime
 
 TMP = 10
 # 指定运行GPU
-os.environ['CUDA_VISIBLE_DEVICES'] = "2"
+os.environ['CUDA_VISIBLE_DEVICES'] = "0"
 args = Options().parse()
 model_file_name = './chk/' + args.model_file
 # summaryFolder = './summary/' + args.log_file
@@ -183,8 +184,8 @@ def forward(att,features,tmp):
 
         return a2
 
-
-dataroot = './dataset/xlsa/'
+# scaler = preprocessing.MinMaxScaler()
+dataroot = '/data/xbjin_data/lw/ZSLearning/AGZSL-main/dataset/xlsa/'
 image_embedding = 'res101' 
 class_embedding = 'att'
 dataset = args.dataset
@@ -200,6 +201,21 @@ test_unseen_loc = matcontent['test_unseen_loc'].squeeze() - 1
 
 att_name = 'att'
 attribute = matcontent[att_name].T
+
+#标准化
+# _train_feature = scaler.fit_transform(feature[trainvalloc])
+# _test_seen_feature = scaler.transform(feature[test_seen_loc])
+# _test_unseen_feature = scaler.transform(feature[test_unseen_loc])
+# train_feature = torch.from_numpy(_train_feature).float()
+# mx = train_feature.max()
+# train_feature.mul_(1/mx)
+# train_label = torch.from_numpy(label[trainvalloc]).long()
+# test_unseen_feature = torch.from_numpy(_test_unseen_feature).float()
+# test_unseen_feature.mul_(1/mx)
+# test_unseen_label = torch.from_numpy(label[test_unseen_loc]).long()
+# test_seen_feature = torch.from_numpy(_test_seen_feature).float()
+# test_seen_feature.mul_(1/mx)
+# test_seen_label = torch.from_numpy(label[test_seen_loc]).long()
 
 
 clsname = [ matcontent['allclasses_names'][i][0][0] for i in range(len(matcontent['allclasses_names']))]
@@ -228,6 +244,9 @@ att_dim = train_att.shape[1]
 feat_dim = train_x.shape[1]
 
 att_pro = torch.from_numpy(att_pro).float().cuda()
+#train_x是后加的
+train_x = torch.from_numpy(train_x).float().cuda()
+train_x = F.normalize(train_x, p=2, dim=train_x.dim()-1, eps=1e-12)
 test_x_seen = torch.from_numpy(test_x_seen).float().cuda()
 test_x_seen = F.normalize(test_x_seen, p=2, dim=test_x_seen.dim()-1, eps=1e-12)
 test_x_unseen = torch.from_numpy(test_x_unseen).float().cuda()
@@ -255,73 +274,75 @@ b1.data.fill_(0)
 b2.data.fill_(0)
 w_IAS.data.normal_(0,0.02)
 b_IAS.data.fill_(0)
+
 # our_net_w.data.normal_(0,0.02)
 # our_net_b.data.fill_(0)
 
 #New net-SRWGAN
-def weights_init(m):
-    classname = m.__class__.__name__
-    if classname.find('Linear') != -1:
-        m.weight.data.normal_(0.0, 0.02)
-        m.bias.data.fill_(0)
-    elif classname.find('BatchNorm') != -1:
-        m.weight.data.normal_(1.0, 0.02)
-        m.bias.data.fill_(0)
-
-def reparameter(mu,sigma):
-    return (torch.randn_like(mu) *sigma) + mu
-class MLP_G(nn.Module):
-    def __init__(self, args):
-        super(MLP_G, self).__init__()
-        self.ngh = args.ngh
-        self.nz = args.nz
-
-        self.fc11 = nn.Linear(args.attSize, self.nz)
-        self.lrelu11 = nn.LeakyReLU(0.2, True)
-        self.sigmoid1 = nn.Sigmoid()
-        self.fc12 = nn.Linear(args.attSize, self.nz)
-        self.lrelu12 = nn.LeakyReLU(0.2, True)
-        self.sigmoid2 = nn.Sigmoid()
-        self.fc13 = nn.Linear(args.attSize, self.nz)
-        self.lrelu13 = nn.LeakyReLU(0.2, True)
-        self.sigmoid3 = nn.Sigmoid()
-
-        self.fc21 = nn.Linear(int(self.nz * 1.5) + args.attSize, args.ngh)
-        self.lrelu21 = nn.LeakyReLU(0.2, True)
-        self.fc31 = nn.Linear(args.ngh, args.resSize)
-        self.relu31 = nn.ReLU(True)
-        self.apply(weights_init)
-
-    def forward(self, feat, lam, select_feats):
-        lam = lam+torch.zeros((feat.shape[0],1)).to(feat.device)
-        # print(lam.shape)
-        # print(feat.shape)
-        # print(select_feats.shape)
-        feats = torch.cat([feat, select_feats, lam], 1)
-        # print(feats.shape)
-        laten1 = self.lrelu11(self.fc11(feats))
-        mus1, stds1 = laten1[:, :int(self.nz * 0.5)], laten1[:, int(self.nz * 0.5):]
-        stds1 = self.sigmoid1(stds1)
-        G_noise1 = reparameter(mus1, stds1)
-
-        laten2 = self.lrelu12(self.fc12(feats))
-        mus2, stds2 = laten2[:, :int(self.nz * 0.5)], laten2[:, int(self.nz * 0.5):]
-        stds2 = self.sigmoid2(stds2)
-        G_noise2 = reparameter(mus2, stds2)
-
-        laten3 = self.lrelu13(self.fc13(feats))
-        mus3, stds3 = laten3[:, :int(self.nz * 0.5)], laten3[:, int(self.nz * 0.5):]
-        stds3 = self.sigmoid3(stds3)
-        G_noise3 = reparameter(mus3, stds3)
-
-        h = torch.cat([G_noise1, G_noise2, G_noise3, feats], 1)
-        h = self.lrelu21(self.fc21(h))
-        h = self.relu31(self.fc31(h))
-        return h, G_noise1, G_noise2, G_noise3
-netG = MLP_G(args)
-netG.cuda()
+# def weights_init(m):
+#     classname = m.__class__.__name__
+#     if classname.find('Linear') != -1:
+#         m.weight.data.normal_(0.0, 0.02)
+#         m.bias.data.fill_(0)
+#     elif classname.find('BatchNorm') != -1:
+#         m.weight.data.normal_(1.0, 0.02)
+#         m.bias.data.fill_(0)
+#
+# def reparameter(mu,sigma):
+#     return (torch.randn_like(mu) *sigma) + mu
+# class MLP_G(nn.Module):
+#     def __init__(self, args):
+#         super(MLP_G, self).__init__()
+#         self.ngh = args.ngh
+#         self.nz = args.nz
+#
+#         self.fc11 = nn.Linear(args.attSize, self.nz)
+#         self.lrelu11 = nn.LeakyReLU(0.2, True)
+#         self.sigmoid1 = nn.Sigmoid()
+#         self.fc12 = nn.Linear(args.attSize, self.nz)
+#         self.lrelu12 = nn.LeakyReLU(0.2, True)
+#         self.sigmoid2 = nn.Sigmoid()
+#         self.fc13 = nn.Linear(args.attSize, self.nz)
+#         self.lrelu13 = nn.LeakyReLU(0.2, True)
+#         self.sigmoid3 = nn.Sigmoid()
+#
+#         self.fc21 = nn.Linear(int(self.nz * 1.5) + args.attSize, args.ngh)
+#         self.lrelu21 = nn.LeakyReLU(0.2, True)
+#         self.fc31 = nn.Linear(args.ngh, args.resSize)
+#         self.relu31 = nn.ReLU(True)
+#         self.apply(weights_init)
+#
+#     def forward(self, feat, lam, select_feats):
+#         lam = lam+torch.zeros((feat.shape[0],1)).to(feat.device)
+#         # print(lam.shape)
+#         # print(feat.shape)
+#         # print(select_feats.shape)
+#         feats = torch.cat([feat, select_feats, lam], 1)
+#         # print(feats.shape)
+#         laten1 = self.lrelu11(self.fc11(feats))
+#         mus1, stds1 = laten1[:, :int(self.nz * 0.5)], laten1[:, int(self.nz * 0.5):]
+#         stds1 = self.sigmoid1(stds1)
+#         G_noise1 = reparameter(mus1, stds1)
+#
+#         laten2 = self.lrelu12(self.fc12(feats))
+#         mus2, stds2 = laten2[:, :int(self.nz * 0.5)], laten2[:, int(self.nz * 0.5):]
+#         stds2 = self.sigmoid2(stds2)
+#         G_noise2 = reparameter(mus2, stds2)
+#
+#         laten3 = self.lrelu13(self.fc13(feats))
+#         mus3, stds3 = laten3[:, :int(self.nz * 0.5)], laten3[:, int(self.nz * 0.5):]
+#         stds3 = self.sigmoid3(stds3)
+#         G_noise3 = reparameter(mus3, stds3)
+#
+#         h = torch.cat([G_noise1, G_noise2, G_noise3, feats], 1)
+#         h = self.lrelu21(self.fc21(h))
+#         h = self.relu31(self.fc31(h))
+#         return h, G_noise1, G_noise2, G_noise3
+# netG = MLP_G(args)
+# netG.cuda()
 
 # New_network
+
 from new_network import new_network
 from new_network import attNetwork
 netN = new_network(args)
@@ -330,13 +351,29 @@ netN.cuda()
 netA = attNetwork(args)
 netA.cuda()
 
+#develop network
+from new_network import RelationNet
+from new_network import Discriminator
+from new_network import AE
+relationNet = RelationNet(args)
+relationNet.cuda()
+discriminator = Discriminator(args)
+discriminator.cuda()
+ae = AE(args)
+ae.cuda()
+
 # add our net parameter
 optimizer = torch.optim.Adam([w_IAS,b_IAS,w1, b1, w2, b2, bias, scale_cls], lr=args.lr, weight_decay=args.opt_decay)
 
 # New_network
 optimizerN = torch.optim.Adam(netN.parameters(), lr=args.lr)
 optimizerA = torch.optim.Adam(netA.parameters(), lr=args.lr)
-
+# develop network
+relationNet_optimizer = torch.optim.Adam(relationNet.parameters(), lr=args.lr, weight_decay=args.weight_decay)
+dis_optimizer = torch.optim.Adam(discriminator.parameters(), lr=args.lr, weight_decay=args.weight_decay)
+ae_optimizer = torch.optim.Adam(ae.parameters(), lr=args.lr, weight_decay=args.weight_decay)
+ones = torch.ones(args.batchSize, dtype=torch.long, device="0")
+zeros = torch.zeros(args.batchSize, dtype=torch.long, device="0")
 
 # breakpoint()
 step_size = args.step_size
@@ -357,6 +394,8 @@ best_acc_gzsl_unseen = 0.0
 best_H = 0.0
 best_epoch = 0
 best_unseenAcc = 0.0
+
+
 
 # 打开txt记录训练信息
 fb = open(summaryFile + filename, 'w')
@@ -385,10 +424,10 @@ for pre_epoch in range(args.pre_epochs):
     con = ('ep: %d, loss: %.4f, loss_visual = %.4f, loss_att = %.4f, loss_visual_mse_vatt = %.4f' % (pre_epoch, pre_epoch_loss, loss_visual_to, loss_att_to, loss_visual_mse_vatt_total))
     fb.write(con + '\n')
 #     # 保存训练模型
-    if(pre_epoch + 1) % 10 == 0:
-        model_save_path = f"pre_models/CUB_remove_sigmoid/model_pre_epoch_{pre_epoch + 1}.pt"
-        torch.save(netN.state_dict(), model_save_path)
-        print(f"Saved model for epoch {pre_epoch} at {model_save_path}")
+#     if(pre_epoch + 1) % 10 == 0:
+#         model_save_path = f"pre_models/CUB_remove_sigmoid/model_pre_epoch_{pre_epoch + 1}.pt"
+#         torch.save(netN.state_dict(), model_save_path)
+#         print(f"Saved model for epoch {pre_epoch} at {model_save_path}")
 
 # # 加载已经保存的loss模型
 # model_path = "/data/xbjin_data/lw/ZSLearning/AGZSL-main/pre_models/AWA2_first/model_pre_epoch_120.pt"
