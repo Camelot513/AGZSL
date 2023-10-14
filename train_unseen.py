@@ -23,13 +23,14 @@ import random
 import pickle
 # from test_embeded import test_while_training_simple
 import datetime
+import argparse
 
 TMP = 10
 # 指定运行GPU
 os.environ['CUDA_VISIBLE_DEVICES'] = "0"
 args = Options().parse()
 model_file_name = './chk/' + args.model_file
-# summaryFolder = './summary/' + args.log_file
+summaryFolder = './summary/' + args.log_file
 if not os.path.exists('./chk'):
     os.mkdir('./chk')
 # 获取当前日期
@@ -54,7 +55,7 @@ while os.path.isfile(summaryFile + filename):
     suffix += 1
     filename = f"{name}_{date}_{suffix}.txt"
 
-# writer = SummaryWriter(summaryFolder)
+writer = SummaryWriter(summaryFolder)
 
 print(args)
 
@@ -278,69 +279,6 @@ b_IAS.data.fill_(0)
 # our_net_w.data.normal_(0,0.02)
 # our_net_b.data.fill_(0)
 
-#New net-SRWGAN
-# def weights_init(m):
-#     classname = m.__class__.__name__
-#     if classname.find('Linear') != -1:
-#         m.weight.data.normal_(0.0, 0.02)
-#         m.bias.data.fill_(0)
-#     elif classname.find('BatchNorm') != -1:
-#         m.weight.data.normal_(1.0, 0.02)
-#         m.bias.data.fill_(0)
-#
-# def reparameter(mu,sigma):
-#     return (torch.randn_like(mu) *sigma) + mu
-# class MLP_G(nn.Module):
-#     def __init__(self, args):
-#         super(MLP_G, self).__init__()
-#         self.ngh = args.ngh
-#         self.nz = args.nz
-#
-#         self.fc11 = nn.Linear(args.attSize, self.nz)
-#         self.lrelu11 = nn.LeakyReLU(0.2, True)
-#         self.sigmoid1 = nn.Sigmoid()
-#         self.fc12 = nn.Linear(args.attSize, self.nz)
-#         self.lrelu12 = nn.LeakyReLU(0.2, True)
-#         self.sigmoid2 = nn.Sigmoid()
-#         self.fc13 = nn.Linear(args.attSize, self.nz)
-#         self.lrelu13 = nn.LeakyReLU(0.2, True)
-#         self.sigmoid3 = nn.Sigmoid()
-#
-#         self.fc21 = nn.Linear(int(self.nz * 1.5) + args.attSize, args.ngh)
-#         self.lrelu21 = nn.LeakyReLU(0.2, True)
-#         self.fc31 = nn.Linear(args.ngh, args.resSize)
-#         self.relu31 = nn.ReLU(True)
-#         self.apply(weights_init)
-#
-#     def forward(self, feat, lam, select_feats):
-#         lam = lam+torch.zeros((feat.shape[0],1)).to(feat.device)
-#         # print(lam.shape)
-#         # print(feat.shape)
-#         # print(select_feats.shape)
-#         feats = torch.cat([feat, select_feats, lam], 1)
-#         # print(feats.shape)
-#         laten1 = self.lrelu11(self.fc11(feats))
-#         mus1, stds1 = laten1[:, :int(self.nz * 0.5)], laten1[:, int(self.nz * 0.5):]
-#         stds1 = self.sigmoid1(stds1)
-#         G_noise1 = reparameter(mus1, stds1)
-#
-#         laten2 = self.lrelu12(self.fc12(feats))
-#         mus2, stds2 = laten2[:, :int(self.nz * 0.5)], laten2[:, int(self.nz * 0.5):]
-#         stds2 = self.sigmoid2(stds2)
-#         G_noise2 = reparameter(mus2, stds2)
-#
-#         laten3 = self.lrelu13(self.fc13(feats))
-#         mus3, stds3 = laten3[:, :int(self.nz * 0.5)], laten3[:, int(self.nz * 0.5):]
-#         stds3 = self.sigmoid3(stds3)
-#         G_noise3 = reparameter(mus3, stds3)
-#
-#         h = torch.cat([G_noise1, G_noise2, G_noise3, feats], 1)
-#         h = self.lrelu21(self.fc21(h))
-#         h = self.relu31(self.fc31(h))
-#         return h, G_noise1, G_noise2, G_noise3
-# netG = MLP_G(args)
-# netG.cuda()
-
 # New_network
 
 from new_network import new_network
@@ -352,15 +290,15 @@ netA = attNetwork(args)
 netA.cuda()
 
 #develop network
-from new_network import RelationNet
-from new_network import Discriminator
-from new_network import AE
-relationNet = RelationNet(args)
-relationNet.cuda()
-discriminator = Discriminator(args)
-discriminator.cuda()
-ae = AE(args)
-ae.cuda()
+# from new_network import RelationNet
+# from new_network import Discriminator
+# from new_network import AE
+# relationNet = RelationNet(args)
+# relationNet.cuda()
+# discriminator = Discriminator(args)
+# discriminator.cuda()
+# ae = AE(args)
+# ae.cuda()
 
 # add our net parameter
 optimizer = torch.optim.Adam([w_IAS,b_IAS,w1, b1, w2, b2, bias, scale_cls], lr=args.lr, weight_decay=args.opt_decay)
@@ -369,11 +307,11 @@ optimizer = torch.optim.Adam([w_IAS,b_IAS,w1, b1, w2, b2, bias, scale_cls], lr=a
 optimizerN = torch.optim.Adam(netN.parameters(), lr=args.lr)
 optimizerA = torch.optim.Adam(netA.parameters(), lr=args.lr)
 # develop network
-relationNet_optimizer = torch.optim.Adam(relationNet.parameters(), lr=args.lr, weight_decay=args.weight_decay)
-dis_optimizer = torch.optim.Adam(discriminator.parameters(), lr=args.lr, weight_decay=args.weight_decay)
-ae_optimizer = torch.optim.Adam(ae.parameters(), lr=args.lr, weight_decay=args.weight_decay)
-ones = torch.ones(args.batchSize, dtype=torch.long, device="0")
-zeros = torch.zeros(args.batchSize, dtype=torch.long, device="0")
+# relationNet_optimizer = torch.optim.Adam(relationNet.parameters(), lr=args.lr, weight_decay=args.weight_decay)
+# dis_optimizer = torch.optim.Adam(discriminator.parameters(), lr=args.lr, weight_decay=args.weight_decay)
+# ae_optimizer = torch.optim.Adam(ae.parameters(), lr=args.lr, weight_decay=args.weight_decay)
+ones = torch.ones(args.batchSize, dtype=torch.long).cuda()
+zeros = torch.zeros(args.batchSize, dtype=torch.long).cuda()
 
 # breakpoint()
 step_size = args.step_size
@@ -385,7 +323,8 @@ criterion = nn.CrossEntropyLoss()
 ways = args.ways
 shots = args.shots
 
-dataset = data_loader_virtualCls(train_x, train_att, train_label, ways=ways, shots=shots)
+seen_classes = torch.from_numpy(np.unique(train_label))
+dataset = data_loader_virtualCls(train_x, train_att, train_label, seen_classes, ways=ways, shots=shots)
 
 # breakpoint()
 best_acc_zsl = 0.0
@@ -402,45 +341,106 @@ fb = open(summaryFile + filename, 'w')
 description=str(args)
 fb.write(description + '\n')
 # 训练新网络的loss
-for pre_epoch in range(args.pre_epochs):
-    pre_epoch_loss = 0
-    loss_visual_to = 0
-    loss_att_to = 0
-    loss_visual_mse_vatt_total = 0
-    print("%d epoch" % (pre_epoch))
-    for i in range(500):
-        pre_loss, loss_visual, loss_att, loss_visual_mse_vatt = dataset.__train_newnet__(pre_epoch, netN, netA, optimizerN, optimizerA)
-        print("%d/500 steps,loss = %.4f, loss_visual = %.4f, loss_att = %.4f, loss_visual_mse_vatt = %.4f" % (i, pre_loss.item(), loss_visual.item(), loss_att.item(), loss_visual_mse_vatt.item()))
-        # pre_loss = torch.tensor(pre_loss)
-        pre_epoch_loss = pre_epoch_loss + pre_loss
-        loss_visual_to = loss_visual_to + loss_visual
-        loss_att_to = loss_att_to + loss_att
-        loss_visual_mse_vatt_total = loss_visual_mse_vatt_total + loss_visual_mse_vatt
-    pre_epoch_loss = pre_epoch_loss / 500
-    loss_visual_to = loss_visual_to / 500
-    loss_att_to = loss_att_to / 500
-    loss_visual_mse_vatt_total = loss_visual_mse_vatt_total / 500
-    print("loss: %.4f, loss_visual: %.4f, loss_att: %.4f, loss_visual_mse_vatt = %.4f" % (pre_epoch_loss, loss_visual_to, loss_att_to, loss_visual_mse_vatt_total))
-    con = ('ep: %d, loss: %.4f, loss_visual = %.4f, loss_att = %.4f, loss_visual_mse_vatt = %.4f' % (pre_epoch, pre_epoch_loss, loss_visual_to, loss_att_to, loss_visual_mse_vatt_total))
-    fb.write(con + '\n')
-#     # 保存训练模型
+# for pre_epoch in range(args.pre_epochs):
+#     pre_epoch_loss = 0
+#     loss_visual_to = 0
+#     loss_att_to = 0
+#     loss_visual_mse_vatt_total = 0
+#     print("%d epoch" % (pre_epoch))
+#     for i in range(500):
+#         pre_loss, loss_visual, loss_att, loss_visual_mse_vatt = dataset.__train_newnet__(pre_epoch, netN, netA, optimizerN, optimizerA)
+#         print("%d/500 steps,loss = %.4f, loss_visual = %.4f, loss_att = %.4f, loss_visual_mse_vatt = %.4f" % (i, pre_loss.item(), loss_visual.item(), loss_att.item(), loss_visual_mse_vatt.item()))
+#         # pre_loss = torch.tensor(pre_loss)
+#         pre_epoch_loss = pre_epoch_loss + pre_loss
+#         loss_visual_to = loss_visual_to + loss_visual
+#         loss_att_to = loss_att_to + loss_att
+#         loss_visual_mse_vatt_total = loss_visual_mse_vatt_total + loss_visual_mse_vatt
+#     pre_epoch_loss = pre_epoch_loss / 500
+#     loss_visual_to = loss_visual_to / 500
+#     loss_att_to = loss_att_to / 500
+#     loss_visual_mse_vatt_total = loss_visual_mse_vatt_total / 500
+#     print("loss: %.4f, loss_visual: %.4f, loss_att: %.4f, loss_visual_mse_vatt = %.4f" % (pre_epoch_loss, loss_visual_to, loss_att_to, loss_visual_mse_vatt_total))
+#     con = ('ep: %d, loss: %.4f, loss_visual = %.4f, loss_att = %.4f, loss_visual_mse_vatt = %.4f' % (pre_epoch, pre_epoch_loss, loss_visual_to, loss_att_to, loss_visual_mse_vatt_total))
+#     fb.write(con + '\n')
+# #     # 保存训练模型
 #     if(pre_epoch + 1) % 10 == 0:
-#         model_save_path = f"pre_models/CUB_remove_sigmoid/model_pre_epoch_{pre_epoch + 1}.pt"
+#         model_save_path = f"pre_models/CUB_modify_para/model_pre_epoch_{pre_epoch + 1}.pt"
 #         torch.save(netN.state_dict(), model_save_path)
 #         print(f"Saved model for epoch {pre_epoch} at {model_save_path}")
 
 # # 加载已经保存的loss模型
-# model_path = "/data/xbjin_data/lw/ZSLearning/AGZSL-main/pre_models/AWA2_first/model_pre_epoch_120.pt"
+# model_path = "/data/xbjin_data/lw/ZSLearning/AGZSL-main/pre_models/CUB_modify_para/model_pre_epoch_160.pt"
 # netN.load_state_dict(torch.load(model_path))
-netN.eval()
-netA.eval()
+
+# SDGZSL's config
+parser = argparse.ArgumentParser()
+parser.add_argument('--dataset', default='SUN',help='dataset: CUB, AWA2, APY, FLO, SUN')
+parser.add_argument('--dataroot', default='./SDGZSL_data', help='path to dataset')
+parser.add_argument('--workers', type=int, help='number of data loading workers', default=4)
+parser.add_argument('--image_embedding', default='res101', type=str)
+parser.add_argument('--class_embedding', default='att', type=str)
+
+parser.add_argument('--gen_nepoch', type=int, default=400, help='number of epochs to train for')
+parser.add_argument('--lr', type=float, default=0.0001, help='learning rate to train generater')
+
+parser.add_argument('--zsl', type=bool, default=False, help='Evaluate ZSL or GZSL')
+parser.add_argument('--finetune', type=bool, default=False, help='Use fine-tuned feature')
+parser.add_argument('--ga', type=float, default=15, help='relationNet weight')
+parser.add_argument('--beta', type=float, default=1, help='tc weight')
+parser.add_argument('--weight_decay', type=float, default=1e-6, help='weight_decay')
+parser.add_argument('--dis', type=float, default=3, help='Discriminator weight')
+parser.add_argument('--dis_step', type=float, default=2, help='Discriminator update interval')
+parser.add_argument('--kl_warmup', type=float, default=0.01, help='kl warm-up for VAE')
+parser.add_argument('--tc_warmup', type=float, default=0.001, help='tc warm-up')
+
+parser.add_argument('--vae_dec_drop', type=float, default=0.5, help='dropout rate in the VAE decoder')
+parser.add_argument('--vae_enc_drop', type=float, default=0.4, help='dropout rate in the VAE encoder')
+parser.add_argument('--ae_drop', type=float, default=0.2, help='dropout rate in the auto-encoder')
+
+parser.add_argument('--classifier_lr', type=float, default=0.001, help='learning rate to train softmax classifier')
+parser.add_argument('--classifier_steps', type=int, default=50, help='training steps of the classifier')
+
+parser.add_argument('--batchsize', type=int, default=64, help='input batch size')
+parser.add_argument('--nSample', type=int, default=1200, help='number features to generate per class')
+
+parser.add_argument('--disp_interval', type=int, default=200)
+parser.add_argument('--save_interval', type=int, default=10000)
+parser.add_argument('--evl_interval',  type=int, default=400)
+parser.add_argument('--evl_start',  type=int, default=0)
+parser.add_argument('--manualSeed', type=int, default=5606, help='manual seed')
+
+parser.add_argument('--latent_dim', type=int, default=20, help='dimention of latent z')
+parser.add_argument('--q_z_nn_output_dim', type=int, default=128, help='dimention of hidden layer in encoder')
+parser.add_argument('--S_dim', type=int, default=1024)
+parser.add_argument('--NS_dim', type=int, default=1024)
+
+parser.add_argument('--gpu', default='0', type=str, help='index of GPU to use')
+opt = parser.parse_args()
+opt.Z_dim = opt.latent_dim
+opt.X_dim = train_x.shape[1]
+opt.C_dim = attribute.shape[1]
+from models import VAE
+# netM = VAE(opt)
+# netM.cuda()
+model_path = '/data/xbjin_data/lw/ZSLearning/SDGZSL-main/out/CUB/wd-1e-08_b-0.003_g-5_lr-0.0001_sd-2048_dis-0.3_nS-1000_nZ-20_bs-64_CUB_H_modify2Best_model_save_H_50.41_S_47.39_U_53.85.pth'
+netM = torch.load(model_path, map_location='cuda:0')
+netM.eval()
+from models import AE
+# netAE = AE(opt)
+# netAE.cuda()
+ae_path = '/data/xbjin_data/lw/ZSLearning/SDGZSL-main/out/CUB/wd-1e-08_b-0.003_g-5_lr-0.0001_sd-2048_dis-0.3_nS-1000_nZ-20_bs-64_CUB_H_modify2Best_ae_save_H_50.41_S_47.39_U_53.85.pth'
+netAE = torch.load(ae_path, map_location='cuda:0')
+netAE.eval()
+# ae.eval()
+# netN.eval()
+# netA.eval()
 
 for epoch in range(args.num_epochs):
         epoch_loss = 0
         lr_scheduler.step()
 
         for i in range(1000):
-                batch_visual, batch_att, batch_label = dataset.__our_getitem__(i, netN) # __our_getitem__(i,ournet) use our net to process att and visual, and new att and visual
+                batch_visual, batch_att, batch_label = dataset.__our_getitem__(i, netM, netAE) # __our_getitem__(i,ournet) use our net to process att and visual, and new att and visual
                 # batch_visual, batch_att, batch_label = dataset.__getitem__(i)
                 batch_visual = batch_visual.cuda()
                 batch_visual_norm = F.normalize(batch_visual, p=2, dim=batch_visual.dim()-1, eps=1e-12)                         
@@ -469,14 +469,14 @@ for epoch in range(args.num_epochs):
         
         H = 2 * acc_seen_gzsl * acc_unseen_gzsl / (acc_seen_gzsl + acc_unseen_gzsl)
         print(H)
-        # writer.add_scalar('general/acc_seen_gzsl',acc_seen_gzsl,epoch)
-        # writer.add_scalar('general/acc_unseen_gzsl',acc_unseen_gzsl,epoch)
-        # writer.add_scalar('general/H',H,epoch)
-        # writer.add_scalar('split/unseenAcc',acc_zsl,epoch)
-        # writer.add_scalar('split/seenAcc',seenAcc,epoch)
-        # writer.add_scalar('split/Rs',Rs,epoch)
-        # writer.add_scalar('split/Ru',Ru,epoch)
-        # writer.add_scalar('loss/loss',epoch_loss,epoch)
+        writer.add_scalar('general/acc_seen_gzsl',acc_seen_gzsl,epoch)
+        writer.add_scalar('general/acc_unseen_gzsl',acc_unseen_gzsl,epoch)
+        writer.add_scalar('general/H',H,epoch)
+        writer.add_scalar('split/unseenAcc',acc_zsl,epoch)
+        writer.add_scalar('split/seenAcc',seenAcc,epoch)
+        writer.add_scalar('split/Rs',Rs,epoch)
+        writer.add_scalar('split/Ru',Ru,epoch)
+        writer.add_scalar('loss/loss',epoch_loss,epoch)
         # 写入训练信息
         content = ('ep: %d,  loss: %.4f,  zsl: %.4f, seenAcc: %.4f  gzsl: seen=%.4f, unseen=%.4f, h=%.4f, Rs=%.4f, Ru=%.4f ' %
                         (epoch,  epoch_loss, acc_zsl, seenAcc, acc_seen_gzsl, acc_unseen_gzsl, H, Rs, Ru,))
