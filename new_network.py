@@ -118,6 +118,7 @@ class AE(nn.Module):
         self.decoder_lrelu1 = nn.LeakyReLU(0.2, True)
         self.decoder_linear2 = nn.Linear(self.hz, self.vz)
         # self.decoder_sigmoid = nn.Sigmoid()
+        self.S_dim = 1024
 
         # #attReg
         # self.attReg_linear1 = nn.Linear(self.vz, self.hz)
@@ -126,27 +127,16 @@ class AE(nn.Module):
         # self.apply(weights_init)
         initialize_weights(self)
 
-    def forward(self, feat, lam, select_feat):
+    def forward(self, feat):
         #use encoder
         encoder_h1 = self.encoder_lrelu1(self.encoder_linear1(feat))
         zi = self.encoder_linear2(encoder_h1)
-        zi_s = zi[:, :self.args.S_dim]
-        zi_ns = zi[:, self.args.S_dim:]
-        encoder_h2 = self.encoder_lrelu1(self.encoder_linear1(select_feat))
-        zj = self.encoder_linear2(encoder_h2)
-        zj_s = zj[:, :self.args.S_dim]
-        zj_ns = zj[:, self.args.S_dim:]
-        zv = lam * zi + (1 - lam) * zj
-        zv_s = zv[:, :self.args.S_dim]
-        zv_ns = zv[:, self.args.S_dim:]
+        zi_s = zi[:, :self.S_dim]
+        zi_ns = zi[:, self.S_dim:]
 
         # use decoder
         decoder_h1 = self.decoder_lrelu1(self.decoder_linear1(zi))
         x_i = self.decoder_linear2(decoder_h1)
-        decoder_h3 = self.decoder_lrelu1(self.decoder_linear1(zj))
-        x_j = self.decoder_linear2(decoder_h3)
-        decoder_h5 = self.decoder_lrelu1(self.decoder_linear1(zv))
-        x_v = self.decoder_linear2(decoder_h5)
 
         # #use attReg
         # attReg_h1 = self.attReg_lrelu1(self.attReg_linear1(x_i))
@@ -160,10 +150,8 @@ class AE(nn.Module):
         # a_v = a_v / a_v.pow(2).sum(1).sqrt().unsqueeze(1).expand(a_v.size(0), a_v.size(1))
 
         x_i = F.normalize(x_i,p=2,dim=1,eps=1e-12)
-        x_j = F.normalize(x_j,p=2,dim=1,eps=1e-12)
-        x_v = F.normalize(x_v,p=2,dim=1,eps=1e-12)
 
-        return x_i, zi, zi_s, zi_ns, x_j, zj, zj_s, zj_ns, x_v, zv, zv_s, zv_ns
+        return x_i, zi, zi_s, zi_ns
 class RelationNet(nn.Module):
     def __init__(self, args):
         super(RelationNet, self).__init__()

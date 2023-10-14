@@ -87,7 +87,7 @@ class data_loader_virtualCls(data.Dataset):
 
                 return select_feats[noval_index:], select_atts[noval_index:], select_labels[noval_index:]
 
-        def __our_getitem__(self, index, netM, netAE):
+        def __our_getitem__(self, index, netn):
                 is_first = True
                 select_feats = []
                 select_atts = []
@@ -137,10 +137,10 @@ class data_loader_virtualCls(data.Dataset):
                                     att = att.unsqueeze(0)
                                     att_v = lam*att+(1-lam)*select_atts[int(i-self.ways/2)*self.shots+j]
                                     # netN
-                                    # _, _, v_feat = netn(feat.cuda(), lam, select_feat.cuda())
+                                    _, _, v_feat = netn(feat.cuda(), lam, select_feat.cuda())
                                     # SDGZSL
-                                    x_mean, _, _, _ = netM(feat.cuda(), att.cuda())
-                                    v_feat, h1, hs1, hn1 = netAE(x_mean)
+                                    # x_mean, _, _, _ = netM(feat.cuda(), att.cuda())
+                                    # v_feat, h1, hs1, hn1 = netAE(x_mean)
 
                                     # print(feat.size())
                                     # print(att.size())
