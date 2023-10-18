@@ -132,15 +132,26 @@ def calc_accuracy(test_visual, test_label, attM, test_id, test_id_seen_unseen,co
 
 def compute_accuracy_all(test_att, att_all, test_visual_unseen, test_id_unseen, test_label_unseen,
                 test_visual_seen, test_id_all, test_label_seen, train_id):
+        with torch.no_grad():
+            _,_,test_visual_unseen_hs,_ = netAE(test_visual_unseen)
+            _, _, test_visual_seen_hs, _ = netAE(test_visual_seen)
 
-        acc_zsl,_,unseenacc_cls,_,unseenpred_cls = calc_accuracy(test_visual_unseen, test_label_unseen, test_att, test_id_unseen,test_id_unseen)
-        acc_seenAcc,_,seenacc_cls,_,_ = calc_accuracy(test_visual_seen, test_label_seen, att_all, train_id, train_id)
+        acc_zsl,_,unseenacc_cls,_,unseenpred_cls = calc_accuracy(test_visual_unseen_hs, test_label_unseen, test_att, test_id_unseen,test_id_unseen)
+        acc_seenAcc,_,seenacc_cls,_,_ = calc_accuracy(test_visual_seen_hs, test_label_seen, att_all, train_id, train_id)
 
         att_all_cls = torch.cat((att_all, test_att))
         
-        acc_gzsl_unseen,Ru,unseengeneralAcc_cls,unseenCos_cls,_ = calc_accuracy(test_visual_unseen, test_label_unseen, att_all_cls, test_id_all,test_id_unseen,cossim=True)
-        
-        acc_gzsl_seen,Rs,seengeneralAcc_cls,seenCos_cls,_ = calc_accuracy(test_visual_seen, test_label_seen, att_all_cls, test_id_all,train_id,cossim=True)       
+        # acc_gzsl_unseen,Ru,unseengeneralAcc_cls,unseenCos_cls,_ = calc_accuracy(test_visual_unseen, test_label_unseen, att_all_cls, test_id_all,test_id_unseen,cossim=True)
+        acc_gzsl_unseen, Ru, unseengeneralAcc_cls, unseenCos_cls, _ = calc_accuracy(test_visual_unseen_hs,
+                                                                                    test_label_unseen, att_all_cls,
+                                                                                    test_id_all, test_id_unseen,
+                                                                                    cossim=True)
+
+        # acc_gzsl_seen, Rs, seengeneralAcc_cls, seenCos_cls, _ = calc_accuracy(test_visual_seen, test_label_seen, att_all_cls, test_id_all, train_id, cossim=True)
+        acc_gzsl_seen, Rs, seengeneralAcc_cls, seenCos_cls, _ = calc_accuracy(test_visual_seen_hs, test_label_seen,
+                                                                              att_all_cls, test_id_all, train_id,
+                                                                              cossim=True)
+
         acc_cls = {**unseenacc_cls,**seenacc_cls}
         generalAcc_cls = {**unseengeneralAcc_cls,**seengeneralAcc_cls}
         H = 2 * acc_gzsl_seen * acc_gzsl_unseen / (acc_gzsl_seen + acc_gzsl_unseen)
@@ -293,6 +304,66 @@ netA.cuda()
 # ae = AE(args)
 # ae.cuda()
 
+# SDGZSL's config
+parser = argparse.ArgumentParser()
+parser.add_argument('--dataset', default='SUN',help='dataset: CUB, AWA2, APY, FLO, SUN')
+parser.add_argument('--dataroot', default='./SDGZSL_data', help='path to dataset')
+parser.add_argument('--workers', type=int, help='number of data loading workers', default=4)
+parser.add_argument('--image_embedding', default='res101', type=str)
+parser.add_argument('--class_embedding', default='att', type=str)
+
+parser.add_argument('--gen_nepoch', type=int, default=400, help='number of epochs to train for')
+parser.add_argument('--lr', type=float, default=0.0001, help='learning rate to train generater')
+
+parser.add_argument('--zsl', type=bool, default=False, help='Evaluate ZSL or GZSL')
+parser.add_argument('--finetune', type=bool, default=False, help='Use fine-tuned feature')
+parser.add_argument('--ga', type=float, default=15, help='relationNet weight')
+parser.add_argument('--beta', type=float, default=1, help='tc weight')
+parser.add_argument('--weight_decay', type=float, default=1e-6, help='weight_decay')
+parser.add_argument('--dis', type=float, default=3, help='Discriminator weight')
+parser.add_argument('--dis_step', type=float, default=2, help='Discriminator update interval')
+parser.add_argument('--kl_warmup', type=float, default=0.01, help='kl warm-up for VAE')
+parser.add_argument('--tc_warmup', type=float, default=0.001, help='tc warm-up')
+
+parser.add_argument('--vae_dec_drop', type=float, default=0.5, help='dropout rate in the VAE decoder')
+parser.add_argument('--vae_enc_drop', type=float, default=0.4, help='dropout rate in the VAE encoder')
+parser.add_argument('--ae_drop', type=float, default=0.2, help='dropout rate in the auto-encoder')
+
+parser.add_argument('--classifier_lr', type=float, default=0.001, help='learning rate to train softmax classifier')
+parser.add_argument('--classifier_steps', type=int, default=50, help='training steps of the classifier')
+
+parser.add_argument('--batchsize', type=int, default=64, help='input batch size')
+parser.add_argument('--nSample', type=int, default=1200, help='number features to generate per class')
+
+parser.add_argument('--disp_interval', type=int, default=200)
+parser.add_argument('--save_interval', type=int, default=10000)
+parser.add_argument('--evl_interval',  type=int, default=400)
+parser.add_argument('--evl_start',  type=int, default=0)
+parser.add_argument('--manualSeed', type=int, default=5606, help='manual seed')
+
+parser.add_argument('--latent_dim', type=int, default=20, help='dimention of latent z')
+parser.add_argument('--q_z_nn_output_dim', type=int, default=128, help='dimention of hidden layer in encoder')
+parser.add_argument('--S_dim', type=int, default=1024)
+parser.add_argument('--NS_dim', type=int, default=1024)
+
+parser.add_argument('--gpu', default='0', type=str, help='index of GPU to use')
+opt = parser.parse_args()
+opt.Z_dim = opt.latent_dim
+opt.X_dim = train_x.shape[1]
+opt.C_dim = attribute.shape[1]
+from models import VAE
+# netM = VAE(opt)
+# netM.cuda()
+model_path = '/data/xbjin_data/lw/ZSLearning/SDGZSL-main/out/CUB/wd-1e-08_b-0.003_g-5_lr-0.0001_sd-2048_dis-0.3_nS-1000_nZ-20_bs-64_CUB_H_modify2Best_model_save_H_50.41_S_47.39_U_53.85.pth'
+netM = torch.load(model_path, map_location='cuda:0')
+# netM.eval()
+from models import AE
+# netAE = AE(opt)
+# netAE.cuda()
+ae_path = '/data/xbjin_data/lw/ZSLearning/SDGZSL-main/out/CUB/wd-1e-08_b-0.003_g-5_lr-0.0001_sd-2048_dis-0.3_nS-1000_nZ-20_bs-64_CUB_H_modify2Best_ae_save_H_50.41_S_47.39_U_53.85.pth'
+netAE = torch.load(ae_path, map_location='cuda:0')
+# netAE.eval()
+
 # add our net parameter
 optimizer = torch.optim.Adam([w_IAS,b_IAS,w1, b1, w2, b2, bias, scale_cls], lr=args.lr, weight_decay=args.opt_decay)
 
@@ -303,7 +374,7 @@ optimizerA = torch.optim.Adam(netA.parameters(), lr=args.lr)
 # develop network
 # relationNet_optimizer = torch.optim.Adam(relationNet.parameters(), lr=args.lr, weight_decay=args.weight_decay)
 # dis_optimizer = torch.optim.Adam(discriminator.parameters(), lr=args.lr, weight_decay=args.weight_decay)
-# ae_optimizer = torch.optim.Adam(ae.parameters(), lr=args.lr, weight_decay=args.weight_decay)
+ae_optimizer = torch.optim.Adam(netAE.parameters(), lr=args.lr, weight_decay=args.weight_decay)
 # ones = torch.ones(args.batchSize, dtype=torch.long).cuda()
 # zeros = torch.zeros(args.batchSize, dtype=torch.long).cuda()
 
@@ -342,7 +413,8 @@ for pre_epoch in range(args.pre_epochs):
     loss_visual_mse_vatt_total = 0
     print("%d epoch" % (pre_epoch))
     for i in range(500):
-        pre_loss, loss_visual, loss_att, loss_visual_mse_vatt = dataset.__train_newnet__(pre_epoch, netN, netA, optimizerN, optimizerA)
+        # pre_loss, loss_visual, loss_att, loss_visual_mse_vatt = dataset.__train_newnet__(pre_epoch, netN, netA, optimizerN, optimizerA)
+        pre_loss, loss_visual, loss_att, loss_visual_mse_vatt = dataset.__train_sdnet__(pre_epoch, netM, netAE, netA, ae_optimizer, optimizerA)
         print("%d/500 steps,loss = %.4f, loss_visual = %.4f, loss_att = %.4f, loss_visual_mse_vatt = %.4f" % (i, pre_loss.item(), loss_visual.item(), loss_att.item(), loss_visual_mse_vatt.item()))
         # pre_loss = torch.tensor(pre_loss)
         pre_epoch_loss = pre_epoch_loss + pre_loss
@@ -356,15 +428,21 @@ for pre_epoch in range(args.pre_epochs):
     print("loss: %.4f, loss_visual: %.4f, loss_att: %.4f, loss_visual_mse_vatt = %.4f" % (pre_epoch_loss, loss_visual_to, loss_att_to, loss_visual_mse_vatt_total))
     con = ('ep: %d, loss: %.4f, loss_visual = %.4f, loss_att = %.4f, loss_visual_mse_vatt = %.4f' % (pre_epoch, pre_epoch_loss, loss_visual_to, loss_att_to, loss_visual_mse_vatt_total))
     fb.write(con + '\n')
-#     # 保存训练模型
-    if(pre_epoch + 1) % 10 == 0:
-        model_save_path = f"pre_models/CUB_modify_para/model_pre_epoch_{pre_epoch + 1}.pt"
-        torch.save(netN.state_dict(), model_save_path)
-        print(f"Saved model for epoch {pre_epoch} at {model_save_path}")
+# # 保存训练模型
+    model_save_path = f"pre_models/CUB_sd_modify_1018/model_pre_epoch_{pre_epoch + 1}.pt"
+    torch.save({'netAE': netAE.state_dict()}, model_save_path)
+#     if(pre_epoch + 1) % 10 == 0:
+#         model_save_path = f"pre_models/CUB_sd_modify_1017/model_pre_epoch_{pre_epoch + 1}.pt"
+#         torch.save(netN.state_dict(), model_save_path)
+#         print(f"Saved model for epoch {pre_epoch} at {model_save_path}")
+
 
 # # 加载已经保存的loss模型
-# model_path = "/data/xbjin_data/lw/ZSLearning/AGZSL-main/pre_models/CUB_modify_para/model_pre_epoch_160.pt"
-# netN.load_state_dict(torch.load(model_path))
+# pre_model_path = "/data/xbjin_data/lw/ZSLearning/AGZSL-main/pre_models/CUB_sd_modify_1017/model_pre_epoch_150.pt"
+# state_dict = torch.load(pre_model_path)
+# netAE.load_state_dict(state_dict)
+# netAE.cuda()
+
 
 # SDGZSL's config
 # parser = argparse.ArgumentParser()
@@ -425,8 +503,9 @@ for pre_epoch in range(args.pre_epochs):
 # ae_path = '/data/xbjin_data/lw/ZSLearning/SDGZSL-main/out/CUB/wd-1e-08_b-0.003_g-5_lr-0.0001_sd-2048_dis-0.3_nS-1000_nZ-20_bs-64_CUB_H_modify2Best_ae_save_H_50.41_S_47.39_U_53.85.pth'
 # netAE = torch.load(ae_path, map_location='cuda:0')
 # netAE.eval()
-
-netN.eval()
+# netM.eval()
+netAE.eval()
+# netN.eval()
 netA.eval()
 
 for epoch in range(args.num_epochs):
@@ -434,7 +513,7 @@ for epoch in range(args.num_epochs):
         lr_scheduler.step()
 
         for i in range(1000):
-                batch_visual, batch_att, batch_label = dataset.__our_getitem__(i, netN) # __our_getitem__(i,ournet) use our net to process att and visual, and new att and visual
+                batch_visual, batch_att, batch_label = dataset.__our_getitem__(i, netAE) # __our_getitem__(i,ournet) use our net to process att and visual, and new att and visual
                 # batch_visual, batch_att, batch_label = dataset.__getitem__(i)
                 batch_visual = batch_visual.cuda()
                 batch_visual_norm = F.normalize(batch_visual, p=2, dim=batch_visual.dim()-1, eps=1e-12)                         
@@ -443,6 +522,7 @@ for epoch in range(args.num_epochs):
                 unique_batch_att = torch.index_select(batch_att, 0, indx).float().cuda()                
 
                 all_cls_weights = forward(unique_batch_att,batch_visual_norm,tmp=TMP)
+
 
                 score = apply_classification_weights(batch_visual_norm, all_cls_weights)
                 score = score.squeeze(0)
