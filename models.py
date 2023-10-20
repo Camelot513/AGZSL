@@ -48,15 +48,14 @@ class VAE(nn.Module):
         )
         p_x_mean = nn.Sequential(
             nn.Linear(2048, self.args.X_dim)
-            # nn.LeakyReLU(0.2, inplace=True) # ours这里注释掉
+            # nn.LeakyReLU(0.2, inplace=True) # ous注释掉这行
         )
         return p_x_nn, p_x_mean
 
 
     def reparameterize(self, mu, var):
         std = var.sqrt()
-        # eps = self.FloatTensor(std.size()).normal_().to(self.args.gpu)
-        eps = self.FloatTensor(std.size()).normal_().to("cuda:0")
+        eps = self.FloatTensor(std.size()).normal_().to(self.args.gpu)
         eps = Variable(eps)
         z = eps.mul(std).add_(mu)
         return z
@@ -144,3 +143,20 @@ class Discriminator(nn.Module):
     def forward(self, s):
         score = self.fc1(s)
         return nn.Sigmoid()(score)
+
+class attNetwork(nn.Module):
+    def __init__(self, args):
+        super(attNetwork, self).__init__()
+        self.args = args
+        # attReg
+        self.attReg_linear1 = nn.Linear(args.X_dim, args.S_dim + args.NS_dim)
+        self.attReg_lrelu1 = nn.LeakyReLU(0.2, True)
+        self.attReg_linear2 = nn.Linear(args.S_dim + args.NS_dim, args.C_dim)
+        # initialize_weights(self)
+
+    def forward(self, feat):
+        # use attReg
+        attReg_h1 = self.attReg_lrelu1(self.attReg_linear1(feat))
+        att_pred = self.attReg_linear2(attReg_h1)
+        att_pred = att_pred / att_pred.pow(2).sum(1).sqrt().unsqueeze(1).expand(att_pred.size(0), att_pred.size(1))
+        return att_pred

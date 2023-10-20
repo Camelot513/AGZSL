@@ -20,7 +20,7 @@ import torch
 import yaml
 import torchvision.transforms as transforms
 import networkx as nx
-import torchvision.datasets as datasets
+# import torchvision.datasets as datasets
 from torch.autograd import Variable
 
 from tensorboardX import SummaryWriter
@@ -99,6 +99,60 @@ class train(object):
         a1 = F.relu(torch.matmul(att, self.w1) + self.b1)
         a2 = F.relu(torch.matmul(a1, self.w2) + self.b2)
         return a2
+
+    def ae_model(self, features):
+        parser = argparse.ArgumentParser()
+        parser.add_argument('--dataset', default='SUN', help='dataset: CUB, AWA2, APY, FLO, SUN')
+        parser.add_argument('--dataroot', default='./SDGZSL_data', help='path to dataset')
+        parser.add_argument('--workers', type=int, help='number of data loading workers', default=4)
+        parser.add_argument('--image_embedding', default='res101', type=str)
+        parser.add_argument('--class_embedding', default='att', type=str)
+
+        parser.add_argument('--gen_nepoch', type=int, default=400, help='number of epochs to train for')
+        parser.add_argument('--lr', type=float, default=0.0001, help='learning rate to train generater')
+
+        parser.add_argument('--zsl', type=bool, default=False, help='Evaluate ZSL or GZSL')
+        parser.add_argument('--finetune', type=bool, default=False, help='Use fine-tuned feature')
+        parser.add_argument('--ga', type=float, default=15, help='relationNet weight')
+        parser.add_argument('--beta', type=float, default=1, help='tc weight')
+        parser.add_argument('--weight_decay', type=float, default=1e-6, help='weight_decay')
+        parser.add_argument('--dis', type=float, default=3, help='Discriminator weight')
+        parser.add_argument('--dis_step', type=float, default=2, help='Discriminator update interval')
+        parser.add_argument('--kl_warmup', type=float, default=0.01, help='kl warm-up for VAE')
+        parser.add_argument('--tc_warmup', type=float, default=0.001, help='tc warm-up')
+
+        parser.add_argument('--vae_dec_drop', type=float, default=0.5, help='dropout rate in the VAE decoder')
+        parser.add_argument('--vae_enc_drop', type=float, default=0.4, help='dropout rate in the VAE encoder')
+        parser.add_argument('--ae_drop', type=float, default=0.2, help='dropout rate in the auto-encoder')
+
+        parser.add_argument('--classifier_lr', type=float, default=0.001,
+                            help='learning rate to train softmax classifier')
+        parser.add_argument('--classifier_steps', type=int, default=50, help='training steps of the classifier')
+
+        parser.add_argument('--batchsize', type=int, default=64, help='input batch size')
+        parser.add_argument('--nSample', type=int, default=1200, help='number features to generate per class')
+
+        parser.add_argument('--disp_interval', type=int, default=200)
+        parser.add_argument('--save_interval', type=int, default=10000)
+        parser.add_argument('--evl_interval', type=int, default=400)
+        parser.add_argument('--evl_start', type=int, default=0)
+        parser.add_argument('--manualSeed', type=int, default=5606, help='manual seed')
+
+        parser.add_argument('--latent_dim', type=int, default=20, help='dimention of latent z')
+        parser.add_argument('--q_z_nn_output_dim', type=int, default=128, help='dimention of hidden layer in encoder')
+        parser.add_argument('--S_dim', type=int, default=1024)
+        parser.add_argument('--NS_dim', type=int, default=1024)
+        parser.add_argument('--feat_dim', type=int, default=2048)
+        parser.add_argument('--att_dim', type=int, default=312)
+
+        parser.add_argument('--gpu', default='0', type=str, help='index of GPU to use')
+        opt = parser.parse_args()
+        opt.Z_dim = opt.latent_dim
+        opt.X_dim = opt.feat_dim
+        opt.C_dim = opt.att_dim
+        ae_path = '/data/xbjin_data/lw/ZSLearning/SDGZSL-main/out/CUB/wd-1e-08_b-0.003_g-5_lr-0.0001_sd-2048_dis-0.3_nS-1000_nZ-20_bs-64_CUB_H_modify2Best_ae_save_H_50.41_S_47.39_U_53.85.pth'
+        self.netAE = torch.load(ae_path, map_location='cuda:0')
+
 
     def loadDataFromCustom(self,dataType):
         """
@@ -196,11 +250,13 @@ class train(object):
                 if self.cfg['dataset_hyp']['imgfType'] == 'customed':
                     images = self.caffeRes101(images).squeeze()
 
-                batch_visual_norm = F.normalize(images, p=2, dim=images.dim()-1, eps=1e-12)                
+                batch_visual_norm = F.normalize(images, p=2, dim=images.dim()-1, eps=1e-12)
+
+                _,_,hs,_ = self.netAE(batch_visual_norm)
                 generalpreds1,generalpreds1_n = self.model1(self.attMatrix,images,TrainOrTest="Test")
                 batch_weights = self.forward(self.attMatrix[len(self.seen_labels):],batch_visual_norm,tmp=TMP)       
                 all_cls_weights = batch_weights
-                generalpreds2 = self.apply_classification_weights(batch_visual_norm, all_cls_weights)
+                generalpreds2 = self.apply_classification_weights(hs, all_cls_weights)
                 generalpreds1 = torch.argmax(generalpreds1,dim=1)
                 generalpreds2 = torch.argmax(generalpreds2,dim=1)+len(self.seen_labels)
                 generalpreds = generalpreds1
@@ -296,7 +352,7 @@ if __name__ =="__main__":
     parser = argparse.ArgumentParser() 
     parser.add_argument('--modelChk',type=str,help='model chkpoint file')
     parser.add_argument('--yaml', default='./chk/seenExpert.yaml',type=str,help='checkpoint file saved in yaml')
-    parser.add_argument('--device',default='cuda:1',type=str,help='cuda:0,cuda:1,cuda:2,cpu')
+    parser.add_argument('--device',default='cuda:0',type=str,help='cuda:0,cuda:1,cuda:2,cpu')
     opt = parser.parse_args()
 
     #chkFile1 ='./chk/201115CUBS2IFinetune_ResNet101_fullv_r520_IAStmp10CustomedExtractedCos520LR5e-4WD5e-7/chk_best_Hs.pt' #class weight + IAS
@@ -308,5 +364,6 @@ if __name__ =="__main__":
 
     truefalselistBase,cos_Base = t.evalModel(chkFile1,chkFile2)
     
+
 
 
